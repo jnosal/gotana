@@ -178,23 +178,27 @@ type Scraper struct {
 
 func (scraper *Scraper) IncrCounters(isSuccessful bool) {
 	scraper.crawledMutex.Lock()
+	defer scraper.crawledMutex.Unlock()
+
 	scraper.crawled += 1
 	if isSuccessful {
 		scraper.successful += 1
 	} else {
 		scraper.failed += 1
 	}
-	scraper.crawledMutex.Unlock()
 }
 
 func (scraper *Scraper) MarkAsFetched(url string) {
 	scraper.fetchMutex.Lock()
+	defer scraper.fetchMutex.Unlock()
+
 	scraper.fetchedUrls[url] = true
-	scraper.fetchMutex.Unlock()
 }
 
 func (scraper *Scraper) CheckIfShouldStop() (ok bool) {
 	scraper.crawledMutex.Lock()
+	defer scraper.crawledMutex.Unlock()
+
 	if scraper.crawled == scraper.engine.limitCrawl {
 		Logger().Warningf("Crawl limit exceeded: %s", scraper)
 		ok = true
@@ -205,14 +209,14 @@ func (scraper *Scraper) CheckIfShouldStop() (ok bool) {
 		Logger().Warningf("Base URL is corrupted: %s", scraper)
 		ok = true
 	}
-	scraper.crawledMutex.Unlock()
 	return
 }
 
 func (scraper *Scraper) CheckIfFetched(url string) (ok bool) {
 	scraper.fetchMutex.Lock()
+	defer scraper.fetchMutex.Unlock()
+
 	_, ok = scraper.fetchedUrls[url]
-	scraper.fetchMutex.Unlock()
 	return
 }
 
