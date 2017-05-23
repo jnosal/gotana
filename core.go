@@ -13,12 +13,11 @@ import (
 	"time"
 )
 
-
 const (
 	REQUEST_LIMIT_MILLISECOND = 100
-	TIMEOUT_DIALER = time.Duration(time.Second * 10)
-	TIMEOUT_REQUEST = time.Duration(time.Second * 10)
-	TIMEOUT_TLS = time.Duration(time.Second * 5)
+	TIMEOUT_DIALER            = time.Duration(time.Second * 10)
+	TIMEOUT_REQUEST           = time.Duration(time.Second * 10)
+	TIMEOUT_TLS               = time.Duration(time.Second * 5)
 )
 
 func GetHref(t html.Token) (ok bool, href string) {
@@ -152,6 +151,15 @@ func (engine *Engine) PushScraper(scrapers ...*Scraper) *Engine {
 	return engine
 }
 
+func (engine *Engine) FromConfig(config *SpiderConfig) *Engine {
+	for _, data := range config.Spiders {
+		scraper := NewScraper(data.Name, data.Url)
+		engine.PushScraper(scraper)
+	}
+
+	return engine
+}
+
 type Scraper struct {
 	crawled      int
 	successful   int
@@ -159,13 +167,14 @@ type Scraper struct {
 	handler      func(ScrapingResultProxy)
 	fetchMutex   *sync.Mutex
 	crawledMutex *sync.Mutex
+	name         string
 	domain       string
 	baseUrl      string
 	fetchedUrls  map[string]bool
 	engine       *Engine
 	extractor    *LinkExtractor
-	chDone     chan struct{}
-	chRequestUrl  chan string
+	chDone       chan struct{}
+	chRequestUrl chan string
 }
 
 func (scraper *Scraper) IncrCounters(isSuccessful bool) {
@@ -243,11 +252,11 @@ func (scraper *Scraper) Start() {
 
 	for {
 		select {
-			case url := <-scraper.chRequestUrl:
-				<-limiter
-				go scraper.Fetch(url)
-			case <-scraper.chDone:
-				return
+		case url := <-scraper.chRequestUrl:
+			<-limiter
+			go scraper.Fetch(url)
+		case <-scraper.chDone:
+			return
 		}
 	}
 	return
@@ -308,7 +317,7 @@ func NewEngine() (r *Engine) {
 	return
 }
 
-func NewScraper(sourceUrl string) (s *Scraper) {
+func NewScraper(name string, sourceUrl string) (s *Scraper) {
 	parsed, err := URL.Parse(sourceUrl)
 	if err != nil {
 		fury.Logger().Infof("Inappropriate URL: %s", sourceUrl)
@@ -318,14 +327,15 @@ func NewScraper(sourceUrl string) (s *Scraper) {
 		crawled:      0,
 		successful:   0,
 		failed:       0,
+		name:         name,
 		domain:       parsed.Host,
 		baseUrl:      sourceUrl,
 		fetchedUrls:  make(map[string]bool),
 		crawledMutex: &sync.Mutex{},
 		fetchMutex:   &sync.Mutex{},
 		extractor:    &LinkExtractor{},
-		chDone:     make(chan struct{}),
-		chRequestUrl:  make(chan string, 1),
+		chDone:       make(chan struct{}),
+		chRequestUrl: make(chan string, 1),
 	}
 	return
 }
@@ -348,15 +358,13 @@ func NewHTTPClient() (client *http.Client) {
 	return
 }
 
-
 type SpiderConfig struct {
 	Project string `required:"true"`
 	Spiders []struct {
-		Name  string `required:"true"`
-		Url string `required:"true"`
+		Name string `required:"true"`
+		Url  string `required:"true"`
 	}
 }
-
 
 func NewSpiderConfig(file string) (config *SpiderConfig) {
 	config = &SpiderConfig{}

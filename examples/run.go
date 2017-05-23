@@ -5,7 +5,6 @@ import (
 	"gotana"
 )
 
-
 func GlobalHandler(proxy gotana.ScrapingResultProxy) {
 	fmt.Println("D")
 }
@@ -16,10 +15,8 @@ func ScraperHandler(proxy gotana.ScrapingResultProxy) {
 
 func main() {
 	config := gotana.NewSpiderConfig("data.yml")
-	fmt.Println(config)
 	engine := gotana.NewEngine().SetHandler(GlobalHandler)
+	engine.FromConfig(config)
 
-	engine.PushScraper(gotana.NewScraper("http://golangweekly!!!.com").SetHandler(ScraperHandler))
-	engine.PushScraper(gotana.NewScraper("http://golangweekly.com").SetHandler(ScraperHandler))
 	engine.Run()
 }
