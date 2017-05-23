@@ -2,7 +2,6 @@ package gotana
 
 import (
 	"fmt"
-	fury "github.com/jnosal/gofury"
 	"golang.org/x/net/html"
 	"io"
 	"net"
@@ -125,7 +124,7 @@ func (engine *Engine) Run() {
 			}
 
 		case scraper, ok := <-engine.chDone:
-			fury.Logger().Infof("Stopped %s", scraper)
+			Logger().Infof("Stopped %s", scraper)
 			engine.IncrFinishedCounter()
 			if !ok {
 				break
@@ -144,7 +143,7 @@ func (engine *Engine) Close() {
 
 func (engine *Engine) PushScraper(scrapers ...*Scraper) *Engine {
 	for _, scraper := range scrapers {
-		fury.Logger().Debugf("Attaching new scraper %s", scraper)
+		Logger().Debugf("Attaching new scraper %s", scraper)
 		scraper.engine = engine
 	}
 	engine.scrapers = append(engine.scrapers, scrapers...)
@@ -197,13 +196,13 @@ func (scraper *Scraper) MarkAsFetched(url string) {
 func (scraper *Scraper) CheckIfShouldStop() (ok bool) {
 	scraper.crawledMutex.Lock()
 	if scraper.crawled == scraper.engine.limitCrawl {
-		fury.Logger().Warningf("Crawl limit exceeded: %s", scraper)
+		Logger().Warningf("Crawl limit exceeded: %s", scraper)
 		ok = true
 	} else if scraper.failed == scraper.engine.limitFail {
-		fury.Logger().Warningf("Fail limit exceeeded: %s", scraper)
+		Logger().Warningf("Fail limit exceeeded: %s", scraper)
 		ok = true
 	} else if scraper.failed == 1 && scraper.crawled == 1 {
-		fury.Logger().Warningf("Base URL is corrupted: %s", scraper)
+		Logger().Warningf("Base URL is corrupted: %s", scraper)
 		ok = true
 	}
 	scraper.crawledMutex.Unlock()
@@ -239,13 +238,13 @@ func (scraper *Scraper) RunExtractor(resp *http.Response) {
 }
 
 func (scraper *Scraper) Stop() {
-	fury.Logger().Infof("Stopping %s", scraper)
+	Logger().Infof("Stopping %s", scraper)
 	scraper.chDone <- struct{}{}
 	scraper.engine.chDone <- scraper
 }
 
 func (scraper *Scraper) Start() {
-	fury.Logger().Infof("Starting: %s", scraper)
+	Logger().Infof("Starting: %s", scraper)
 	scraper.chRequestUrl <- scraper.baseUrl
 
 	limiter := time.Tick(time.Millisecond * REQUEST_LIMIT_MILLISECOND)
@@ -272,12 +271,12 @@ func (scraper *Scraper) Fetch(url string) (resp *http.Response, err error) {
 	}
 	scraper.MarkAsFetched(url)
 
-	fury.Logger().Infof("Fetching: %s", url)
+	Logger().Infof("Fetching: %s", url)
 	tic := time.Now()
 
 	resp, err = NewHTTPClient().Get(url)
 
-	fury.Logger().Debugf("Request to %s took: %s", url, time.Since(tic))
+	Logger().Debugf("Request to %s took: %s", url, time.Since(tic))
 
 	scraper.IncrCounters(err == nil)
 
@@ -285,8 +284,8 @@ func (scraper *Scraper) Fetch(url string) (resp *http.Response, err error) {
 		scraper.Notify(resp)
 		scraper.RunExtractor(resp)
 	} else {
-		fury.Logger().Warningf("Failed to crawl %s", url)
-		fury.Logger().Debug(err)
+		Logger().Warningf("Failed to crawl %s", url)
+		Logger().Debug(err)
 	}
 
 	if scraper.CheckIfShouldStop() {
@@ -320,7 +319,7 @@ func NewEngine() (r *Engine) {
 func NewScraper(name string, sourceUrl string) (s *Scraper) {
 	parsed, err := URL.Parse(sourceUrl)
 	if err != nil {
-		fury.Logger().Infof("Inappropriate URL: %s", sourceUrl)
+		Logger().Infof("Inappropriate URL: %s", sourceUrl)
 		return
 	}
 	s = &Scraper{
@@ -368,6 +367,6 @@ type SpiderConfig struct {
 
 func NewSpiderConfig(file string) (config *SpiderConfig) {
 	config = &SpiderConfig{}
-	fury.ProcessFile(config, file)
+	ProcessFile(config, file)
 	return
 }
