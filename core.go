@@ -66,12 +66,13 @@ func (extractor *LinkExtractor) Extract(r io.ReadCloser, callback func(string)) 
 }
 
 type ScrapingResultProxy struct {
-	resp    http.Response
+	Url 	string
+	Response    http.Response
 	scraper Scraper
 }
 
 func (proxy ScrapingResultProxy) String() (result string) {
-	result = "Twoja stara"
+	result = fmt.Sprintf("Result of scraping: %s", proxy.Url)
 	return
 }
 
@@ -231,7 +232,9 @@ func (scraper *Scraper) CheckUrl(sourceUrl string) (ok bool, url string) {
 	return
 }
 
-func (scraper *Scraper) RunExtractor(resp *http.Response) {
+func (scraper *Scraper) RunExtractor(resp http.Response) {
+	defer SilentRecover("EXTRACTOR")
+
 	scraper.extractor.Extract(resp.Body, func(url string) {
 		ok, url := scraper.CheckUrl(url)
 
@@ -265,8 +268,8 @@ func (scraper *Scraper) Start() {
 	return
 }
 
-func (scraper *Scraper) Notify(resp *http.Response) {
-	scraper.engine.chScraped <- NewResultProxy(*scraper, *resp)
+func (scraper *Scraper) Notify(url string, resp *http.Response) {
+	scraper.engine.chScraped <- NewResultProxy(url, *scraper, *resp)
 }
 
 func (scraper *Scraper) Fetch(url string) (resp *http.Response, err error) {
@@ -280,13 +283,18 @@ func (scraper *Scraper) Fetch(url string) (resp *http.Response, err error) {
 
 	resp, err = NewHTTPClient().Get(url)
 
-	Logger().Debugf("Request to %s took: %s", url, time.Since(tic))
+	statusCode := 0
+	if err == nil {
+		statusCode = resp.StatusCode
+	}
+
+	Logger().Debugf("[%d]Request to %s took: %s", statusCode, url, time.Since(tic))
 
 	scraper.IncrCounters(err == nil)
 
 	if err == nil {
-		scraper.Notify(resp)
-		scraper.RunExtractor(resp)
+		scraper.Notify(url, resp)
+		scraper.RunExtractor(*resp)
 	} else {
 		Logger().Warningf("Failed to crawl %s", url)
 		Logger().Debug(err)
@@ -343,9 +351,12 @@ func NewScraper(name string, sourceUrl string) (s *Scraper) {
 	return
 }
 
-func NewResultProxy(scraper Scraper, resp http.Response) (result ScrapingResultProxy) {
-	result = ScrapingResultProxy{scraper: scraper, resp: resp}
-	return
+func NewResultProxy(url string, scraper Scraper, resp http.Response)  ScrapingResultProxy {
+	return ScrapingResultProxy{
+		Response: resp,
+		Url: url,
+		scraper: scraper,
+	}
 }
 
 func NewHTTPClient() (client *http.Client) {

@@ -1,12 +1,12 @@
 package gotana
 
 import (
-	"github.com/op/go-logging"
-	"os"
 	"encoding/json"
-	"strings"
+	"github.com/op/go-logging"
 	yaml "gopkg.in/yaml.v2"
 	"io/ioutil"
+	"os"
+	"strings"
 )
 
 func Logger() *logging.Logger {
@@ -19,7 +19,6 @@ func Logger() *logging.Logger {
 	logging.SetBackend(backendFormatter)
 	return logger
 }
-
 
 func ProcessFile(config interface{}, file string) error {
 	data, err := ioutil.ReadFile(file)
@@ -34,5 +33,11 @@ func ProcessFile(config interface{}, file string) error {
 		return json.Unmarshal(data, config)
 	default:
 		return nil
+	}
+}
+
+func SilentRecover(name string) {
+	if r := recover(); r != nil {
+		Logger().Warningf("Recovered %s", name)
 	}
 }

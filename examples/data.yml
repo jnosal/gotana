@@ -3,7 +3,3 @@ project: test
 spiders:
 - name: golang
   url: http://golangweekly.com
-- name: golang2
-  url: http://golangweekly!!!.com
-- name: google
-  url: http://www.google.com
