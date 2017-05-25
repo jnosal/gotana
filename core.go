@@ -32,7 +32,7 @@ func GetHref(t html.Token) (ok bool, href string) {
 }
 
 type Extractable interface {
-	Extract()
+	Extract(io.ReadCloser, func(string))
 }
 
 type LinkExtractor struct {
@@ -180,7 +180,14 @@ func (engine *Engine) PushScraper(scrapers ...*Scraper) *Engine {
 
 func (engine *Engine) FromConfig(config *SpiderConfig) *Engine {
 	for _, data := range config.Spiders {
-		scraper := NewScraper(data.Name, data.Url)
+		extractor := defaultExtractor()
+		switch data.Extractor {
+		case "link":
+			extractor = &LinkExtractor{}
+		default:
+			break
+		}
+		scraper := NewScraper(data.Name, data.Url, extractor)
 		engine.PushScraper(scraper)
 	}
 
@@ -199,7 +206,7 @@ type Scraper struct {
 	baseUrl      string
 	fetchedUrls  map[string]bool
 	engine       *Engine
-	extractor    *LinkExtractor
+	extractor    Extractable
 	chDone       chan struct{}
 	chRequestUrl chan string
 }
@@ -357,12 +364,18 @@ func NewEngine() (r *Engine) {
 	return
 }
 
-func NewScraper(name string, sourceUrl string) (s *Scraper) {
+func NewScraper(name string, sourceUrl string, extractor Extractable) (s *Scraper) {
 	parsed, err := URL.Parse(sourceUrl)
 	if err != nil {
 		Logger().Infof("Inappropriate URL: %s", sourceUrl)
 		return
 	}
+
+	if extractor == nil {
+		Logger().Warning("Switching to default extractor")
+		extractor = defaultExtractor()
+	}
+
 	s = &Scraper{
 		crawled:      0,
 		successful:   0,
@@ -373,7 +386,7 @@ func NewScraper(name string, sourceUrl string) (s *Scraper) {
 		fetchedUrls:  make(map[string]bool),
 		crawledMutex: &sync.Mutex{},
 		fetchMutex:   &sync.Mutex{},
-		extractor:    &LinkExtractor{},
+		extractor:    extractor,
 		chDone:       make(chan struct{}),
 		chRequestUrl: make(chan string, 5),
 	}
@@ -401,9 +414,14 @@ func NewHTTPClient() (client *http.Client) {
 	return
 }
 
+func defaultExtractor() Extractable {
+	return &LinkExtractor{}
+}
+
 type SpiderConfig struct {
 	Project string `required:"true"`
 	Spiders []struct {
+		Extractor string
 		Name string `required:"true"`
 		Url  string `required:"true"`
 	}

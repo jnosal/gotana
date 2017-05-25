@@ -20,7 +20,6 @@ func GlobalHandler(proxy gotana.ScrapingResultProxy) {
 	}
 }
 
-
 func main() {
 	config := gotana.NewSpiderConfig("data.yml")
 	engine := gotana.NewEngine().SetHandler(GlobalHandler)
