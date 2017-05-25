@@ -21,11 +21,9 @@ func GlobalHandler(proxy gotana.ScrapingResultProxy) {
 }
 
 func main() {
-	config := gotana.NewSpiderConfig("data.yml")
+	config := gotana.NewSpiderConfig("sample1.yml")
 	engine := gotana.NewEngine().SetHandler(GlobalHandler)
 	engine.FromConfig(config)
 
 	engine.Run()
-	//r, _ := http.Get("https://golangweekly.com/link/14366/web")
-	//fmt.Println(r.StatusCode)
 }
