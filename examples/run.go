@@ -3,18 +3,14 @@ package main
 import (
 	"gotana"
 	"strings"
-	"github.com/PuerkitoBio/goquery"
 )
 
 func GlobalHandler(proxy gotana.ScrapingResultProxy) {
 	defer gotana.SilentRecover("HANDLER")
 
 	if strings.Contains(proxy.Url, "/link") && strings.Contains(proxy.Url, "/web") {
-		defer proxy.Response.Body.Close()
 		gotana.Logger().Debug(proxy)
-
-		document, err := goquery.NewDocumentFromReader(proxy.Response.Body)
-
+		document, err := proxy.HTMLDocument()
 		if err != nil {
 			gotana.Logger().Error(err.Error())
 			return

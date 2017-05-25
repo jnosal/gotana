@@ -10,13 +10,14 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"github.com/PuerkitoBio/goquery"
 )
 
 const (
 	REQUEST_LIMIT_MILLISECOND = 100
-	TIMEOUT_DIALER            = time.Duration(time.Second * 10)
-	TIMEOUT_REQUEST           = time.Duration(time.Second * 10)
-	TIMEOUT_TLS               = time.Duration(time.Second * 5)
+	TIMEOUT_DIALER            = time.Duration(time.Second * 30)
+	TIMEOUT_REQUEST           = time.Duration(time.Second * 30)
+	TIMEOUT_TLS               = time.Duration(time.Second * 10)
 )
 
 func GetHref(t html.Token) (ok bool, href string) {
@@ -73,6 +74,32 @@ type ScrapingResultProxy struct {
 
 func (proxy ScrapingResultProxy) String() (result string) {
 	result = fmt.Sprintf("Result of scraping: %s", proxy.Url)
+	return
+}
+
+func (proxy ScrapingResultProxy) CheckIfRedirected() bool {
+	return proxy.Url != proxy.Response.Request.URL.String()
+}
+
+func (proxy ScrapingResultProxy) finalResponseBody() (io.ReadCloser, error) {
+	if proxy.CheckIfRedirected() {
+		client := NewHTTPClient()
+		response, err := client.Get(proxy.Response.Request.URL.String())
+		if err != nil {
+			return nil, err
+		}
+		return response.Body, nil
+	}
+	return proxy.Response.Body, nil
+}
+
+func (proxy ScrapingResultProxy) HTMLDocument() (document *goquery.Document, err error) {
+	responseBody, err := proxy.finalResponseBody()
+
+	if err == nil {
+		document, err = goquery.NewDocumentFromReader(responseBody)
+	}
+
 	return
 }
 
@@ -259,7 +286,7 @@ func (scraper *Scraper) Start() {
 	for {
 		select {
 		case url := <-scraper.chRequestUrl:
-			<-limiter
+			 <-limiter
 			go scraper.Fetch(url)
 		case <-scraper.chDone:
 			return
@@ -280,8 +307,10 @@ func (scraper *Scraper) Fetch(url string) (resp *http.Response, err error) {
 
 	Logger().Infof("Fetching: %s", url)
 	tic := time.Now()
+	request, _ := http.NewRequest("GET", url, nil)
+	request.Header.Del("Accept-Encoding")
 
-	resp, err = NewHTTPClient().Get(url)
+	resp, err = NewHTTPClient().Do(request)
 
 	statusCode := 0
 	if err == nil {
@@ -297,7 +326,7 @@ func (scraper *Scraper) Fetch(url string) (resp *http.Response, err error) {
 		scraper.RunExtractor(*resp)
 	} else {
 		Logger().Warningf("Failed to crawl %s", url)
-		Logger().Debug(err)
+		Logger().Warning(err)
 	}
 
 	if scraper.CheckIfShouldStop() {
@@ -319,8 +348,8 @@ func (scraper *Scraper) String() (result string) {
 
 func NewEngine() (r *Engine) {
 	r = &Engine{
-		limitCrawl: 1000,
-		limitFail:  50,
+		limitCrawl: 10000,
+		limitFail:  500,
 		finished:   0,
 		chDone:     make(chan *Scraper),
 		chScraped:  make(chan ScrapingResultProxy),
@@ -346,7 +375,7 @@ func NewScraper(name string, sourceUrl string) (s *Scraper) {
 		fetchMutex:   &sync.Mutex{},
 		extractor:    &LinkExtractor{},
 		chDone:       make(chan struct{}),
-		chRequestUrl: make(chan string, 1),
+		chRequestUrl: make(chan string, 5),
 	}
 	return
 }
