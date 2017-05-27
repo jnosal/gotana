@@ -131,7 +131,7 @@ func (engine Engine) Done() bool {
 }
 
 func (engine *Engine) Run() {
-	defer engine.Close()
+	defer engine.Stop()
 
 	for _, scraper := range engine.scrapers {
 		go scraper.Start()
@@ -164,7 +164,7 @@ func (engine *Engine) Run() {
 	}
 }
 
-func (engine *Engine) Close() {
+func (engine *Engine) Stop() {
 	close(engine.chDone)
 	close(engine.chScraped)
 }
