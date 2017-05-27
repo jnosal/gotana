@@ -31,6 +31,7 @@ func GetHref(t html.Token) (ok bool, href string) {
 	return
 }
 
+
 type Extractable interface {
 	Extract(io.ReadCloser, func(string))
 }
@@ -130,14 +131,10 @@ func (engine Engine) Done() bool {
 	return len(engine.scrapers) == engine.finished
 }
 
-func (engine *Engine) Run() {
-	defer engine.Stop()
 
-	for _, scraper := range engine.scrapers {
-		go scraper.Start()
-	}
+func (engine *Engine) scrapingLoop() {
+	Logger().Info("Starting scraping loop")
 
-	// main scraping loop
 	for {
 		select {
 		case proxy, ok := <-engine.chScraped:
@@ -162,6 +159,22 @@ func (engine *Engine) Run() {
 			break
 		}
 	}
+}
+
+func (engine *Engine) startTCPServer() {
+	server := NewTCPServer(engine)
+	server.Start()
+}
+
+func (engine *Engine) Run() {
+	defer engine.Stop()
+
+	//for _, scraper := range engine.scrapers {
+	//	go scraper.Start()
+	//}
+
+	go engine.startTCPServer()
+	engine.scrapingLoop()
 }
 
 func (engine *Engine) Stop() {
