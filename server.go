@@ -21,6 +21,7 @@ type TCPMessage struct {
 
 type TCPServer struct {
 	engine *Engine
+	address string
 	messages chan TCPMessage
 	commands map[string]TCPCommand
 }
@@ -70,17 +71,16 @@ func (server *TCPServer) handleTCPConnection(conn net.Conn) {
 }
 
 func (server *TCPServer) Start() {
-	address := "localhost:7654"
-	listener, err := net.Listen("tcp", address)
+	listener, err := net.Listen("tcp", server.address)
 
 	if err != nil {
-		Logger().Errorf("Cannot start TCP server at: %s", address)
+		Logger().Errorf("Cannot start TCP server at: %s", server.address)
 		return
 	}
 
 	go server.handleTCPMessages()
 
-	Logger().Infof("Started TCP server at: %s", address)
+	Logger().Infof("Started TCP server at: %s", server.address)
 
 	for {
 		conn, err := listener.Accept();
@@ -113,8 +113,9 @@ func CommandStats(message string, conn net.Conn, server *TCPServer) {
 }
 
 
-func NewTCPServer(engine *Engine) (server *TCPServer){
+func NewTCPServer(address string, engine *Engine) (server *TCPServer){
 	server = &TCPServer{
+		address: address,
 		engine: engine,
 		messages: make(chan TCPMessage),
 		commands: make(map[string]TCPCommand),

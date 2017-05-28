@@ -116,6 +116,7 @@ type Engine struct {
 	scrapers   []*Scraper
 	chDone     chan *Scraper
 	chScraped  chan ScrapingResultProxy
+	TcpAddress string
 }
 
 func (engine *Engine) SetHandler(handler func(ScrapingResultProxy)) *Engine {
@@ -162,7 +163,7 @@ func (engine *Engine) scrapingLoop() {
 }
 
 func (engine *Engine) startTCPServer() {
-	server := NewTCPServer(engine)
+	server := NewTCPServer(engine.TcpAddress, engine)
 	server.Start()
 }
 
@@ -173,7 +174,10 @@ func (engine *Engine) Run() {
 		go scraper.Start()
 	}
 
-	go engine.startTCPServer()
+	if engine.TcpAddress != "" {
+		go engine.startTCPServer()
+	}
+
 	engine.scrapingLoop()
 }
 
@@ -198,6 +202,8 @@ func (engine *Engine) PushScraper(scrapers ...*Scraper) *Engine {
 }
 
 func (engine *Engine) FromConfig(config *SpiderConfig) *Engine {
+	engine.TcpAddress = config.TcpAddress
+
 	for _, data := range config.Spiders {
 		extractor := defaultExtractor()
 		switch data.Extractor {
@@ -439,6 +445,7 @@ func defaultExtractor() Extractable {
 
 type SpiderConfig struct {
 	Project string `required:"true"`
+	TcpAddress string
 	Spiders []struct {
 		Extractor string
 		Name string `required:"true"`
