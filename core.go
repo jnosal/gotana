@@ -167,17 +167,23 @@ func (engine *Engine) startTCPServer() {
 }
 
 func (engine *Engine) Run() {
-	defer engine.Stop()
+	defer engine.Cleanup()
 
-	//for _, scraper := range engine.scrapers {
-	//	go scraper.Start()
-	//}
+	for _, scraper := range engine.scrapers {
+		go scraper.Start()
+	}
 
 	go engine.startTCPServer()
 	engine.scrapingLoop()
 }
 
-func (engine *Engine) Stop() {
+func (engine *Engine) StopScrapers() {
+	for _, scraper := range engine.scrapers {
+		go scraper.Stop()
+	}
+}
+
+func (engine *Engine) Cleanup() {
 	close(engine.chDone)
 	close(engine.chScraped)
 }
