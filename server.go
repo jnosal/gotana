@@ -5,6 +5,7 @@ import (
 	"net"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 const (
@@ -27,7 +28,9 @@ type TCPServer struct {
 }
 
 func writeLine(conn net.Conn, message string) {
+	conn.Write([]byte(strings.Repeat("-", utf8.RuneCountInString(message)) + "\n"))
 	conn.Write([]byte(message + "\n"))
+	conn.Write([]byte(strings.Repeat("-", utf8.RuneCountInString(message)) + "\n"))
 }
 
 func increaseDeadline(conn net.Conn) {

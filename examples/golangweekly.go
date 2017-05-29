@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-func GlobalHandler(proxy gotana.ScrapingResultProxy) {
+func GlobalHandler(proxy gotana.ScrapingResultProxy, items chan<- gotana.Saveable) {
 	defer gotana.SilentRecover("HANDLER")
 
 	if strings.Contains(proxy.Url, "/link") && strings.Contains(proxy.Url, "/web") {

@@ -13,6 +13,8 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
+type Saveable interface{}
+type ScrapingHandlerFunc func(ScrapingResultProxy, chan <- Saveable)
 type RequestMiddlewareFunc func(request *http.Request) *http.Request
 
 const (
@@ -113,16 +115,17 @@ type Runnable interface {
 type Engine struct {
 	limitCrawl int
 	limitFail  int
-	handler    func(ScrapingResultProxy)
+	handler    ScrapingHandlerFunc
 	finished   int
 	scrapers   []*Scraper
 	requestMiddleware []RequestMiddlewareFunc
 	chDone     chan *Scraper
 	chScraped  chan ScrapingResultProxy
+	chItems	   chan Saveable
 	TcpAddress string
 }
 
-func (engine *Engine) SetHandler(handler func(ScrapingResultProxy)) *Engine {
+func (engine *Engine) SetHandler(handler ScrapingHandlerFunc) *Engine {
 	engine.handler = handler
 	return engine
 }
@@ -146,10 +149,10 @@ func (engine *Engine) scrapingLoop() {
 				break
 			}
 			if engine.handler != nil {
-				engine.handler(proxy)
+				engine.handler(proxy, engine.chItems)
 			}
 			if proxy.scraper.handler != nil {
-				proxy.scraper.handler(proxy)
+				proxy.scraper.handler(proxy, engine.chItems)
 			}
 
 		case scraper, ok := <-engine.chDone:
@@ -192,6 +195,7 @@ func (engine *Engine) StopScrapers() {
 func (engine *Engine) Cleanup() {
 	close(engine.chDone)
 	close(engine.chScraped)
+	close(engine.chItems)
 }
 
 func (engine *Engine) PushScraper(scrapers ...*Scraper) *Engine {
@@ -230,7 +234,7 @@ type Scraper struct {
 	crawled      int
 	successful   int
 	failed       int
-	handler      func(ScrapingResultProxy)
+	handler      ScrapingHandlerFunc
 	fetchMutex   *sync.Mutex
 	crawledMutex *sync.Mutex
 	name         string
@@ -384,7 +388,7 @@ func (scraper *Scraper) Fetch(url string) (resp *http.Response, err error) {
 	return
 }
 
-func (scraper *Scraper) SetHandler(handler func(ScrapingResultProxy)) *Scraper {
+func (scraper *Scraper) SetHandler(handler ScrapingHandlerFunc) *Scraper {
 	scraper.handler = handler
 	return scraper
 }
@@ -402,6 +406,7 @@ func NewEngine() (r *Engine) {
 		finished:   0,
 		chDone:     make(chan *Scraper),
 		chScraped:  make(chan ScrapingResultProxy),
+		chItems:	    make(chan Saveable),
 	}
 	return
 }
