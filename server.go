@@ -1,14 +1,14 @@
 package gotana
 
 import (
+	"fmt"
 	"net"
 	"strings"
 	"time"
-	"fmt"
 )
 
 const (
-	BUFFER_SIZE = 4096
+	BUFFER_SIZE                      = 4096
 	TCP_CONNECTION_READLINE_DEADLINE = 30
 )
 
@@ -16,16 +16,15 @@ type TCPCommand func(message string, conn net.Conn, server *TCPServer)
 
 type TCPMessage struct {
 	payload string
-	conn net.Conn
+	conn    net.Conn
 }
 
 type TCPServer struct {
-	engine *Engine
-	address string
+	engine   *Engine
+	address  string
 	messages chan TCPMessage
-	commands map[string]TCPCommand
+	commands map[string]interface{}
 }
-
 
 func writeLine(conn net.Conn, message string) {
 	conn.Write([]byte(message + "\n"))
@@ -35,22 +34,23 @@ func increaseDeadline(conn net.Conn) {
 	conn.SetReadDeadline(time.Now().Add(time.Second * TCP_CONNECTION_READLINE_DEADLINE))
 }
 
-func (server *TCPServer) handleTCPMessages() {
+func (server *TCPServer) handleMessages() {
 	for {
 		tcpMessage := <-server.messages
 		msg := strings.ToUpper(strings.TrimSpace(tcpMessage.payload))
 		conn := tcpMessage.conn
 
 		Logger().Debugf("Got message %s", msg)
-		if commandHandler, ok := server.commands[msg]; ok {
-			commandHandler(msg, conn, server)
+		if v, ok := server.commands[msg]; ok {
+			handler := v.(TCPCommand)
+			handler(msg, conn, server)
 		} else {
 			writeLine(conn, fmt.Sprintf("No such command: %s", msg))
 		}
 	}
 }
 
-func (server *TCPServer) handleTCPConnection(conn net.Conn) {
+func (server *TCPServer) handleConnection(conn net.Conn) {
 	defer conn.Close()
 	Logger().Debugf("Got new TCP connection: %v", conn.RemoteAddr())
 	writeLine(conn, "Connection established. Enter a command")
@@ -78,19 +78,19 @@ func (server *TCPServer) Start() {
 		return
 	}
 
-	go server.handleTCPMessages()
+	go server.handleMessages()
 
 	Logger().Infof("Started TCP server at: %s", server.address)
 
 	for {
-		conn, err := listener.Accept();
+		conn, err := listener.Accept()
 
-		if  err != nil {
+		if err != nil {
 			Logger().Error(err.Error())
 			continue
 		}
 
-		go server.handleTCPConnection(conn)
+		go server.handleConnection(conn)
 	}
 }
 
@@ -104,21 +104,26 @@ func CommandStop(message string, conn net.Conn, server *TCPServer) {
 }
 
 func CommandHelp(message string, conn net.Conn, server *TCPServer) {
+	keys := GetMapKeys(server.commands)
 
+	writeLine(conn, fmt.Sprintf("Available commands: %s", strings.Join(keys, ", ")))
 }
-
 
 func CommandStats(message string, conn net.Conn, server *TCPServer) {
-	Logger().Debug(message)
+	writeLine(conn, fmt.Sprintf("Total scrapers: %d", len(server.engine.scrapers)))
+
+	for _, scraper := range server.engine.scrapers {
+		writeLine(conn, scraper.String())
+		writeLine(conn, fmt.Sprintf("Currently fetching: %s", scraper.CurrentUrl))
+	}
 }
 
-
-func NewTCPServer(address string, engine *Engine) (server *TCPServer){
+func NewTCPServer(address string, engine *Engine) (server *TCPServer) {
 	server = &TCPServer{
-		address: address,
-		engine: engine,
+		address:  address,
+		engine:   engine,
 		messages: make(chan TCPMessage),
-		commands: make(map[string]TCPCommand),
+		commands: make(map[string]interface{}),
 	}
 	server.AddCommand("STATS", CommandStats)
 	server.AddCommand("HELP", CommandHelp)

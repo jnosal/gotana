@@ -41,3 +41,16 @@ func SilentRecover(name string) {
 		Logger().Warningf("Recovered %s", name)
 	}
 }
+
+
+func GetMapKeys(m map[string]interface{}) []string {
+	keys := make([]string, len(m))
+
+	i := 0
+	for key := range m {
+	    keys[i] = key
+	    i++
+	}
+
+	return keys
+}

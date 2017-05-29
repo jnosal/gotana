@@ -163,8 +163,10 @@ func (engine *Engine) scrapingLoop() {
 }
 
 func (engine *Engine) startTCPServer() {
-	server := NewTCPServer(engine.TcpAddress, engine)
-	server.Start()
+	if engine.TcpAddress != "" {
+		server := NewTCPServer(engine.TcpAddress, engine)
+		server.Start()
+	}
 }
 
 func (engine *Engine) Run() {
@@ -174,10 +176,7 @@ func (engine *Engine) Run() {
 		go scraper.Start()
 	}
 
-	if engine.TcpAddress != "" {
-		go engine.startTCPServer()
-	}
-
+	go engine.startTCPServer()
 	engine.scrapingLoop()
 }
 
@@ -229,6 +228,7 @@ type Scraper struct {
 	name         string
 	domain       string
 	baseUrl      string
+	CurrentUrl   string
 	fetchedUrls  map[string]bool
 	engine       *Engine
 	extractor    Extractable
@@ -252,6 +252,7 @@ func (scraper *Scraper) MarkAsFetched(url string) {
 	scraper.fetchMutex.Lock()
 	defer scraper.fetchMutex.Unlock()
 
+	scraper.CurrentUrl = url
 	scraper.fetchedUrls[url] = true
 }
 
