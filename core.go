@@ -13,6 +13,8 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
+type RequestMiddlewareFunc func(request *http.Request) *http.Request
+
 const (
 	REQUEST_LIMIT_MILLISECOND = 100
 	TIMEOUT_DIALER            = time.Duration(time.Second * 30)
@@ -114,6 +116,7 @@ type Engine struct {
 	handler    func(ScrapingResultProxy)
 	finished   int
 	scrapers   []*Scraper
+	requestMiddleware []RequestMiddlewareFunc
 	chDone     chan *Scraper
 	chScraped  chan ScrapingResultProxy
 	TcpAddress string
@@ -197,6 +200,11 @@ func (engine *Engine) PushScraper(scrapers ...*Scraper) *Engine {
 		scraper.engine = engine
 	}
 	engine.scrapers = append(engine.scrapers, scrapers...)
+	return engine
+}
+
+func (engine *Engine) PushRequestMiddleware(middleware ...RequestMiddlewareFunc) *Engine {
+	engine.requestMiddleware = append(engine.requestMiddleware, middleware...)
 	return engine
 }
 
@@ -332,6 +340,13 @@ func (scraper *Scraper) Notify(url string, resp *http.Response) {
 	scraper.engine.chScraped <- NewResultProxy(url, *scraper, *resp)
 }
 
+func (engine *Engine) PrepareRequest(request *http.Request) *http.Request {
+	for _, middleware := range engine.requestMiddleware {
+		request = middleware(request)
+	}
+	return request
+}
+
 func (scraper *Scraper) Fetch(url string) (resp *http.Response, err error) {
 	if ok := scraper.CheckIfFetched(url); ok {
 		return
@@ -340,8 +355,9 @@ func (scraper *Scraper) Fetch(url string) (resp *http.Response, err error) {
 
 	Logger().Infof("Fetching: %s", url)
 	tic := time.Now()
+
 	request, _ := http.NewRequest("GET", url, nil)
-	request.Header.Del("Accept-Encoding")
+	request = scraper.engine.PrepareRequest(request)
 
 	resp, err = NewHTTPClient().Do(request)
 
