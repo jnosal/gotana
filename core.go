@@ -2,19 +2,20 @@ package gotana
 
 import (
 	"fmt"
+	"github.com/PuerkitoBio/goquery"
 	"golang.org/x/net/html"
 	"io"
 	"net"
 	"net/http"
 	URL "net/url"
+	"os"
 	"strings"
 	"sync"
 	"time"
-	"github.com/PuerkitoBio/goquery"
 )
 
 type Saveable interface{}
-type ScrapingHandlerFunc func(ScrapingResultProxy, chan <- Saveable)
+type ScrapingHandlerFunc func(ScrapingResultProxy, chan<- Saveable)
 type RequestMiddlewareFunc func(request *http.Request) *http.Request
 
 const (
@@ -34,7 +35,6 @@ func GetHref(t html.Token) (ok bool, href string) {
 
 	return
 }
-
 
 type Extractable interface {
 	Extract(io.ReadCloser, func(string))
@@ -72,9 +72,9 @@ func (extractor *LinkExtractor) Extract(r io.ReadCloser, callback func(string)) 
 }
 
 type ScrapingResultProxy struct {
-	Url 	string
-	Response    http.Response
-	scraper Scraper
+	Url      string
+	Response http.Response
+	scraper  Scraper
 }
 
 func (proxy ScrapingResultProxy) String() (result string) {
@@ -113,16 +113,17 @@ type Runnable interface {
 }
 
 type Engine struct {
-	limitCrawl int
-	limitFail  int
-	handler    ScrapingHandlerFunc
-	finished   int
-	scrapers   []*Scraper
+	limitCrawl        int
+	limitFail         int
+	handler           ScrapingHandlerFunc
+	finished          int
+	scrapers          []*Scraper
 	requestMiddleware []RequestMiddlewareFunc
-	chDone     chan *Scraper
-	chScraped  chan ScrapingResultProxy
-	chItems	   chan Saveable
-	TcpAddress string
+	chDone            chan *Scraper
+	chScraped         chan ScrapingResultProxy
+	chItems           chan Saveable
+	TcpAddress        string
+	OutFile           *os.File
 }
 
 func (engine *Engine) SetHandler(handler ScrapingHandlerFunc) *Engine {
@@ -137,7 +138,6 @@ func (engine *Engine) IncrFinishedCounter() {
 func (engine Engine) Done() bool {
 	return len(engine.scrapers) == engine.finished
 }
-
 
 func (engine *Engine) scrapingLoop() {
 	Logger().Info("Starting scraping loop")
@@ -161,6 +161,11 @@ func (engine *Engine) scrapingLoop() {
 			if !ok {
 				break
 			}
+		case item, ok := <-engine.chItems:
+			if !ok {
+				break
+			}
+			WriteToFile(item, engine.OutFile)
 		}
 		if engine.Done() {
 			break
@@ -196,6 +201,9 @@ func (engine *Engine) Cleanup() {
 	close(engine.chDone)
 	close(engine.chScraped)
 	close(engine.chItems)
+	if engine.OutFile != nil {
+		engine.OutFile.Close()
+	}
 }
 
 func (engine *Engine) PushScraper(scrapers ...*Scraper) *Engine {
@@ -214,7 +222,11 @@ func (engine *Engine) PushRequestMiddleware(middleware ...RequestMiddlewareFunc)
 
 func (engine *Engine) FromConfig(config *SpiderConfig) *Engine {
 	engine.TcpAddress = config.TcpAddress
-
+	if config.OutFileName != "" {
+		if f, err := os.OpenFile(config.OutFileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666); err == nil {
+			engine.OutFile = f
+		}
+	}
 	for _, data := range config.Spiders {
 		extractor := defaultExtractor()
 		switch data.Extractor {
@@ -237,6 +249,7 @@ type Scraper struct {
 	handler      ScrapingHandlerFunc
 	fetchMutex   *sync.Mutex
 	crawledMutex *sync.Mutex
+	saveMutex    *sync.Mutex
 	name         string
 	domain       string
 	baseUrl      string
@@ -331,7 +344,7 @@ func (scraper *Scraper) Start() {
 	for {
 		select {
 		case url := <-scraper.chRequestUrl:
-			 <-limiter
+			<-limiter
 			go scraper.Fetch(url)
 		case <-scraper.chDone:
 			return
@@ -406,7 +419,7 @@ func NewEngine() (r *Engine) {
 		finished:   0,
 		chDone:     make(chan *Scraper),
 		chScraped:  make(chan ScrapingResultProxy),
-		chItems:	    make(chan Saveable),
+		chItems:    make(chan Saveable, 10),
 	}
 	return
 }
@@ -433,6 +446,7 @@ func NewScraper(name string, sourceUrl string, extractor Extractable) (s *Scrape
 		fetchedUrls:  make(map[string]bool),
 		crawledMutex: &sync.Mutex{},
 		fetchMutex:   &sync.Mutex{},
+		saveMutex:    &sync.Mutex{},
 		extractor:    extractor,
 		chDone:       make(chan struct{}),
 		chRequestUrl: make(chan string, 5),
@@ -440,11 +454,11 @@ func NewScraper(name string, sourceUrl string, extractor Extractable) (s *Scrape
 	return
 }
 
-func NewResultProxy(url string, scraper Scraper, resp http.Response)  ScrapingResultProxy {
+func NewResultProxy(url string, scraper Scraper, resp http.Response) ScrapingResultProxy {
 	return ScrapingResultProxy{
 		Response: resp,
-		Url: url,
-		scraper: scraper,
+		Url:      url,
+		scraper:  scraper,
 	}
 }
 
@@ -465,13 +479,21 @@ func defaultExtractor() Extractable {
 	return &LinkExtractor{}
 }
 
+func WriteToFile(item Saveable, f *os.File) {
+	if f != nil {
+	} else {
+		Logger().Warning("Cannot write to file, no output file specified.")
+	}
+}
+
 type SpiderConfig struct {
-	Project string `required:"true"`
-	TcpAddress string
-	Spiders []struct {
+	Project     string `required:"true"`
+	TcpAddress  string
+	OutFileName string
+	Spiders     []struct {
 		Extractor string
-		Name string `required:"true"`
-		Url  string `required:"true"`
+		Name      string `required:"true"`
+		Url       string `required:"true"`
 	}
 }
 

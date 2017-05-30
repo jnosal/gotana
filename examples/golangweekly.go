@@ -16,6 +16,7 @@ func GlobalHandler(proxy gotana.ScrapingResultProxy, items chan<- gotana.Saveabl
 			return
 		}
 		title := document.Find("title").First().Text()
+		items <- struct{}{}
 		gotana.Logger().Noticef("%s --> %s", proxy.Url, title)
 	}
 }
