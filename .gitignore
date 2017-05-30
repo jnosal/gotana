@@ -24,6 +24,7 @@ logs
 
 # Vim
 *.swp
+*.csv
 
 MANIFEST
 

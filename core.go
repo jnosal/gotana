@@ -1,6 +1,7 @@
 package gotana
 
 import (
+	"encoding/csv"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"golang.org/x/net/html"
@@ -14,7 +15,11 @@ import (
 	"time"
 )
 
-type Saveable interface{}
+type Saveable interface{
+	Validate() bool
+	CSV() []string
+}
+
 type ScrapingHandlerFunc func(ScrapingResultProxy, chan<- Saveable)
 type RequestMiddlewareFunc func(request *http.Request) *http.Request
 
@@ -139,8 +144,11 @@ func (engine Engine) Done() bool {
 	return len(engine.scrapers) == engine.finished
 }
 
+
 func (engine *Engine) scrapingLoop() {
 	Logger().Info("Starting scraping loop")
+
+	writer := GetWriter(engine)
 
 	for {
 		select {
@@ -165,7 +173,7 @@ func (engine *Engine) scrapingLoop() {
 			if !ok {
 				break
 			}
-			WriteToFile(item, engine.OutFile)
+			SaveItem(item, writer)
 		}
 		if engine.Done() {
 			break
@@ -249,7 +257,6 @@ type Scraper struct {
 	handler      ScrapingHandlerFunc
 	fetchMutex   *sync.Mutex
 	crawledMutex *sync.Mutex
-	saveMutex    *sync.Mutex
 	name         string
 	domain       string
 	baseUrl      string
@@ -446,7 +453,6 @@ func NewScraper(name string, sourceUrl string, extractor Extractable) (s *Scrape
 		fetchedUrls:  make(map[string]bool),
 		crawledMutex: &sync.Mutex{},
 		fetchMutex:   &sync.Mutex{},
-		saveMutex:    &sync.Mutex{},
 		extractor:    extractor,
 		chDone:       make(chan struct{}),
 		chRequestUrl: make(chan string, 5),
@@ -479,11 +485,27 @@ func defaultExtractor() Extractable {
 	return &LinkExtractor{}
 }
 
-func WriteToFile(item Saveable, f *os.File) {
-	if f != nil {
-	} else {
-		Logger().Warning("Cannot write to file, no output file specified.")
+func GetWriter(engine *Engine) *csv.Writer  {
+	if engine.OutFile != nil {
+		return csv.NewWriter(engine.OutFile)
 	}
+	return nil
+}
+
+
+func SaveItem(item Saveable, writer *csv.Writer) {
+	if writer == nil {
+		Logger().Warning("Cannot write to file, no output file specified.")
+		return
+	}
+
+	if !item.Validate() {
+		Logger().Warning("Item is not valid. Skipping...")
+		return
+	}
+
+	defer writer.Flush()
+	writer.Write(item.CSV())
 }
 
 type SpiderConfig struct {

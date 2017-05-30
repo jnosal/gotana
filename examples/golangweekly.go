@@ -5,6 +5,18 @@ import (
 	"strings"
 )
 
+type Item struct {
+
+}
+
+func (item Item) Validate() bool {
+	return true
+}
+
+func (item Item) CSV() []string {
+	return []string{"TEST", "DATA"}
+}
+
 func GlobalHandler(proxy gotana.ScrapingResultProxy, items chan<- gotana.Saveable) {
 	defer gotana.SilentRecover("HANDLER")
 
@@ -16,7 +28,7 @@ func GlobalHandler(proxy gotana.ScrapingResultProxy, items chan<- gotana.Saveabl
 			return
 		}
 		title := document.Find("title").First().Text()
-		items <- struct{}{}
+		items <- Item{}
 		gotana.Logger().Noticef("%s --> %s", proxy.Url, title)
 	}
 }
