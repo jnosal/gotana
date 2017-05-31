@@ -370,10 +370,10 @@ func (scraper *Scraper) Fetch(url string) (resp *http.Response, err error) {
 	Logger().Infof("Fetching: %s", url)
 	tic := time.Now()
 
-	request, _ := http.NewRequest("GET", url, nil)
-	request = scraper.engine.PrepareRequest(request)
+	req, _ := http.NewRequest("GET", url, nil)
+	req = scraper.engine.PrepareRequest(req)
 
-	resp, err = NewHTTPClient().Do(request)
+	resp, err = NewHTTPClient().Do(req)
 
 	statusCode := 0
 	if err == nil {
@@ -382,7 +382,9 @@ func (scraper *Scraper) Fetch(url string) (resp *http.Response, err error) {
 
 	Logger().Debugf("[%d]Request to %s took: %s", statusCode, url, time.Since(tic))
 
-	scraper.engine.Meta.UpdateStats(scraper, err == nil)
+	isSuccessful := (err == nil)
+
+	scraper.engine.Meta.UpdateStats(scraper, isSuccessful, req, resp)
 
 	if err == nil {
 		scraper.Notify(url, resp)
@@ -405,7 +407,7 @@ func (scraper *Scraper) SetHandler(handler ScrapingHandlerFunc) *Scraper {
 
 func (scraper *Scraper) String() (result string) {
 	stats := scraper.engine.Meta.ScraperStats[scraper.name]
-	result = fmt.Sprintf("<Scraper: %s>. Crawled: %d, successful: %d failed: %d.",
+	result = fmt.Sprintf("<Scraper: %s>. Crawled: %d, successful: %d, failed: %d.",
 		scraper.domain, stats.crawled, stats.successful, stats.failed)
 	return
 }
