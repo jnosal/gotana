@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-type Saveable interface{
+type Saveable interface {
 	Validate() bool
 	CSV() []string
 }
@@ -129,6 +129,7 @@ type Engine struct {
 	chItems           chan Saveable
 	TcpAddress        string
 	OutFile           *os.File
+	Meta              *EngineMeta
 }
 
 func (engine *Engine) SetHandler(handler ScrapingHandlerFunc) *Engine {
@@ -143,7 +144,6 @@ func (engine *Engine) IncrFinishedCounter() {
 func (engine Engine) Done() bool {
 	return len(engine.scrapers) == engine.finished
 }
-
 
 func (engine *Engine) scrapingLoop() {
 	Logger().Info("Starting scraping loop")
@@ -216,8 +216,9 @@ func (engine *Engine) Cleanup() {
 
 func (engine *Engine) PushScraper(scrapers ...*Scraper) *Engine {
 	for _, scraper := range scrapers {
-		Logger().Debugf("Attaching new scraper %s", scraper)
+		engine.Meta.ScraperStats[scraper.name] = NewScraperMeta()
 		scraper.engine = engine
+		Logger().Debugf("Attached new scraper %s", scraper)
 	}
 	engine.scrapers = append(engine.scrapers, scrapers...)
 	return engine
@@ -250,6 +251,35 @@ func (engine *Engine) FromConfig(config *SpiderConfig) *Engine {
 	return engine
 }
 
+type ScraperMeta struct {
+	crawled    int
+	successful int
+	failed     int
+}
+
+type EngineMeta struct {
+	statsMutex    *sync.Mutex
+	ScraperStats  map[string]*ScraperMeta
+	Started       time.Time
+	RequestsTotal int
+	LastRequest   *http.Request
+	LastResponse  *http.Response
+}
+
+func (meta *EngineMeta) UpdateStats(scraper *Scraper, isSuccessful bool) {
+	meta.statsMutex.Lock()
+	defer meta.statsMutex.Unlock()
+	stats := meta.ScraperStats[scraper.name]
+	meta.RequestsTotal += 1
+
+	stats.crawled += 1
+	if isSuccessful {
+		stats.successful += 1
+	} else {
+		stats.failed += 1
+	}
+}
+
 type Scraper struct {
 	crawled      int
 	successful   int
@@ -268,18 +298,6 @@ type Scraper struct {
 	chRequestUrl chan string
 }
 
-func (scraper *Scraper) IncrCounters(isSuccessful bool) {
-	scraper.crawledMutex.Lock()
-	defer scraper.crawledMutex.Unlock()
-
-	scraper.crawled += 1
-	if isSuccessful {
-		scraper.successful += 1
-	} else {
-		scraper.failed += 1
-	}
-}
-
 func (scraper *Scraper) MarkAsFetched(url string) {
 	scraper.fetchMutex.Lock()
 	defer scraper.fetchMutex.Unlock()
@@ -291,14 +309,15 @@ func (scraper *Scraper) MarkAsFetched(url string) {
 func (scraper *Scraper) CheckIfShouldStop() (ok bool) {
 	scraper.crawledMutex.Lock()
 	defer scraper.crawledMutex.Unlock()
+	stats := scraper.engine.Meta.ScraperStats[scraper.name]
 
-	if scraper.crawled == scraper.engine.limitCrawl {
+	if stats.crawled == scraper.engine.limitCrawl {
 		Logger().Warningf("Crawl limit exceeded: %s", scraper)
 		ok = true
-	} else if scraper.failed == scraper.engine.limitFail {
+	} else if stats.failed == scraper.engine.limitFail {
 		Logger().Warningf("Fail limit exceeeded: %s", scraper)
 		ok = true
-	} else if scraper.failed == 1 && scraper.crawled == 1 {
+	} else if stats.failed == 1 && scraper.crawled == 1 {
 		Logger().Warningf("Base URL is corrupted: %s", scraper)
 		ok = true
 	}
@@ -392,7 +411,7 @@ func (scraper *Scraper) Fetch(url string) (resp *http.Response, err error) {
 
 	Logger().Debugf("[%d]Request to %s took: %s", statusCode, url, time.Since(tic))
 
-	scraper.IncrCounters(err == nil)
+	scraper.engine.Meta.UpdateStats(scraper, err == nil)
 
 	if err == nil {
 		scraper.Notify(url, resp)
@@ -414,13 +433,32 @@ func (scraper *Scraper) SetHandler(handler ScrapingHandlerFunc) *Scraper {
 }
 
 func (scraper *Scraper) String() (result string) {
+	stats := scraper.engine.Meta.ScraperStats[scraper.name]
 	result = fmt.Sprintf("<Scraper: %s>. Crawled: %d, successful: %d failed: %d.",
-		scraper.domain, scraper.crawled, scraper.successful, scraper.failed)
+		scraper.domain, stats.crawled, stats.successful, stats.failed)
 	return
 }
 
+func NewScraperMeta() (m *ScraperMeta) {
+	m = &ScraperMeta{
+		failed:     0,
+		crawled:    0,
+		successful: 0,
+	}
+	return
+}
+
+func NewEngineMeta() (m *EngineMeta) {
+	m = &EngineMeta{
+		statsMutex:    &sync.Mutex{},
+		RequestsTotal: 0,
+		ScraperStats:  make(map[string]*ScraperMeta),
+	}
+	return
+}
 func NewEngine() (r *Engine) {
 	r = &Engine{
+		Meta:       NewEngineMeta(),
 		limitCrawl: 10000,
 		limitFail:  500,
 		finished:   0,
@@ -444,9 +482,6 @@ func NewScraper(name string, sourceUrl string, extractor Extractable) (s *Scrape
 	}
 
 	s = &Scraper{
-		crawled:      0,
-		successful:   0,
-		failed:       0,
 		name:         name,
 		domain:       parsed.Host,
 		baseUrl:      sourceUrl,
@@ -485,13 +520,12 @@ func defaultExtractor() Extractable {
 	return &LinkExtractor{}
 }
 
-func GetWriter(engine *Engine) *csv.Writer  {
+func GetWriter(engine *Engine) *csv.Writer {
 	if engine.OutFile != nil {
 		return csv.NewWriter(engine.OutFile)
 	}
 	return nil
 }
-
 
 func SaveItem(item Saveable, writer *csv.Writer) {
 	if writer == nil {

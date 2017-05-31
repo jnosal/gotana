@@ -6,7 +6,6 @@ import (
 )
 
 type Item struct {
-
 }
 
 func (item Item) Validate() bool {

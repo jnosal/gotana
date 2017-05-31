@@ -42,14 +42,13 @@ func SilentRecover(name string) {
 	}
 }
 
-
 func GetMapKeys(m map[string]interface{}) []string {
 	keys := make([]string, len(m))
 
 	i := 0
 	for key := range m {
-	    keys[i] = key
-	    i++
+		keys[i] = key
+		i++
 	}
 
 	return keys

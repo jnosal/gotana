@@ -113,7 +113,10 @@ func CommandHelp(message string, conn net.Conn, server *TCPServer) {
 }
 
 func CommandStats(message string, conn net.Conn, server *TCPServer) {
-	writeLine(conn, fmt.Sprintf("Total scrapers: %d", len(server.engine.scrapers)))
+	info := fmt.Sprintf("Total scrapers: %d. Total requests: %d",
+		len(server.engine.scrapers), server.engine.Meta.RequestsTotal)
+
+	writeLine(conn, info)
 
 	for _, scraper := range server.engine.scrapers {
 		writeLine(conn, scraper.String())
