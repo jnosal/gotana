@@ -251,35 +251,6 @@ func (engine *Engine) FromConfig(config *SpiderConfig) *Engine {
 	return engine
 }
 
-type ScraperMeta struct {
-	crawled    int
-	successful int
-	failed     int
-}
-
-type EngineMeta struct {
-	statsMutex    *sync.Mutex
-	ScraperStats  map[string]*ScraperMeta
-	Started       time.Time
-	RequestsTotal int
-	LastRequest   *http.Request
-	LastResponse  *http.Response
-}
-
-func (meta *EngineMeta) UpdateStats(scraper *Scraper, isSuccessful bool) {
-	meta.statsMutex.Lock()
-	defer meta.statsMutex.Unlock()
-	stats := meta.ScraperStats[scraper.name]
-	meta.RequestsTotal += 1
-
-	stats.crawled += 1
-	if isSuccessful {
-		stats.successful += 1
-	} else {
-		stats.failed += 1
-	}
-}
-
 type Scraper struct {
 	crawled      int
 	successful   int
@@ -439,23 +410,6 @@ func (scraper *Scraper) String() (result string) {
 	return
 }
 
-func NewScraperMeta() (m *ScraperMeta) {
-	m = &ScraperMeta{
-		failed:     0,
-		crawled:    0,
-		successful: 0,
-	}
-	return
-}
-
-func NewEngineMeta() (m *EngineMeta) {
-	m = &EngineMeta{
-		statsMutex:    &sync.Mutex{},
-		RequestsTotal: 0,
-		ScraperStats:  make(map[string]*ScraperMeta),
-	}
-	return
-}
 func NewEngine() (r *Engine) {
 	r = &Engine{
 		Meta:       NewEngineMeta(),
