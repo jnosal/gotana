@@ -1,7 +1,7 @@
 ===========
 Gotana
 ===========
-:Info: Easy to use and extensible crawler engine written in Go
+:Info: Easy to use and extensible scraping framework written in Go.
 :Repository: https://github.com/jnosal/gotana
 :Author: Jacek Nosal
 :Maintainer: Jacek Nosal
