@@ -28,6 +28,9 @@ type recordWriter interface {
 type ScrapingHandlerFunc func(ScrapedItem, chan<- SaveableItem)
 
 const (
+	EVENT_SCRAPER_OPENED      = "SCRAPER_OPENED"
+	EVENT_SCRAPER_CLOSED      = "SCRAPER_CLOSED"
+	EVENT_SAVEABLE_EXTRACTED  = "SAVEABLE_EXTRACTED"
 	REQUEST_LIMIT_MILLISECOND = 100
 	TIMEOUT_DIALER            = time.Duration(time.Second * 30)
 	TIMEOUT_REQUEST           = time.Duration(time.Second * 30)
@@ -143,6 +146,10 @@ type Engine struct {
 	Meta              *EngineMeta
 }
 
+func (engine *Engine) notifyExtensions(event string) {
+	Logger().Warning(event)
+}
+
 func (engine *Engine) SetHandler(handler ScrapingHandlerFunc) *Engine {
 	engine.handler = handler
 	return engine
@@ -188,6 +195,7 @@ func (engine *Engine) scrapingLoop() {
 			if !ok {
 				break
 			}
+			engine.notifyExtensions(EVENT_SAVEABLE_EXTRACTED)
 			SaveItem(item, writer)
 		}
 		if engine.Done() {
@@ -342,12 +350,16 @@ func (scraper *Scraper) RunExtractor(resp http.Response) {
 
 func (scraper *Scraper) Stop() {
 	Logger().Infof("Stopping %s", scraper)
+	scraper.engine.notifyExtensions(EVENT_SCRAPER_CLOSED)
+
 	scraper.chDone <- struct{}{}
 	scraper.engine.chDone <- scraper
 }
 
 func (scraper *Scraper) Start() {
 	Logger().Infof("Starting: %s", scraper)
+	scraper.engine.notifyExtensions(EVENT_SCRAPER_OPENED)
+
 	scraper.chRequestUrl <- scraper.baseUrl
 
 	limiter := time.Tick(time.Millisecond * REQUEST_LIMIT_MILLISECOND)
