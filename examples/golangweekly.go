@@ -16,7 +16,7 @@ func (item Item) RecordData() []string {
 	return []string{"TEST", "DATA"}
 }
 
-func GlobalHandler(proxy gotana.ScrapingResultProxy, items chan<- gotana.Saveable) {
+func GlobalHandler(proxy gotana.ScrapedItem, items chan<- gotana.SaveableItem) {
 	defer gotana.SilentRecover("HANDLER")
 
 	if strings.Contains(proxy.Url, "/link") && strings.Contains(proxy.Url, "/web") {
@@ -36,7 +36,7 @@ func main() {
 	config := gotana.NewSpiderConfig("sample1.yml")
 	engine := gotana.NewEngine().SetHandler(GlobalHandler)
 	engine.FromConfig(config)
-	engine.PushRequestMiddleware(gotana.DelAcceptEncodingMiddleware).
-		PushRequestMiddleware(gotana.RandomUserAgentMiddleware)
+	engine.UseMiddleware(gotana.DelAcceptEncodingMiddleware).
+		UseMiddleware(gotana.RandomUserAgentMiddleware)
 	engine.Run()
 }

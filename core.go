@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-type Saveable interface {
+type SaveableItem interface {
 	Validate() bool
 	RecordData() []string
 }
@@ -25,8 +25,7 @@ type recordWriter interface {
 	Flush()
 }
 
-type ScrapingHandlerFunc func(ScrapingResultProxy, chan<- Saveable)
-type RequestMiddlewareFunc func(request *http.Request) *http.Request
+type ScrapingHandlerFunc func(ScrapedItem, chan<- SaveableItem)
 
 const (
 	REQUEST_LIMIT_MILLISECOND = 100
@@ -44,6 +43,12 @@ func GetHref(t html.Token) (ok bool, href string) {
 	}
 
 	return
+}
+
+type Extension interface {
+	ScraperStarted(scraper *Scraper)
+	ScraperStopped(scraper *Scraper)
+	ItemScraped(scraper *Scraper, item SaveableItem)
 }
 
 type Extractable interface {
@@ -81,22 +86,22 @@ func (extractor *LinkExtractor) Extract(r io.ReadCloser, callback func(string)) 
 	}
 }
 
-type ScrapingResultProxy struct {
+type ScrapedItem struct {
 	Url      string
 	Response http.Response
 	scraper  Scraper
 }
 
-func (proxy ScrapingResultProxy) String() (result string) {
+func (proxy ScrapedItem) String() (result string) {
 	result = fmt.Sprintf("Result of scraping: %s", proxy.Url)
 	return
 }
 
-func (proxy ScrapingResultProxy) CheckIfRedirected() bool {
+func (proxy ScrapedItem) CheckIfRedirected() bool {
 	return proxy.Url != proxy.Response.Request.URL.String()
 }
 
-func (proxy ScrapingResultProxy) finalResponseBody() (io.ReadCloser, error) {
+func (proxy ScrapedItem) finalResponseBody() (io.ReadCloser, error) {
 	if proxy.CheckIfRedirected() {
 		client := NewHTTPClient()
 		response, err := client.Get(proxy.Response.Request.URL.String())
@@ -108,7 +113,7 @@ func (proxy ScrapingResultProxy) finalResponseBody() (io.ReadCloser, error) {
 	return proxy.Response.Body, nil
 }
 
-func (proxy ScrapingResultProxy) HTMLDocument() (document *goquery.Document, err error) {
+func (proxy ScrapedItem) HTMLDocument() (document *goquery.Document, err error) {
 	responseBody, err := proxy.finalResponseBody()
 
 	if err == nil {
@@ -129,9 +134,10 @@ type Engine struct {
 	finished          int
 	scrapers          []*Scraper
 	requestMiddleware []RequestMiddlewareFunc
+	extensions        []Extension
 	chDone            chan *Scraper
-	chScraped         chan ScrapingResultProxy
-	chItems           chan Saveable
+	chScraped         chan ScrapedItem
+	chItems           chan SaveableItem
 	TcpAddress        string
 	OutFileName       string
 	Meta              *EngineMeta
@@ -230,8 +236,13 @@ func (engine *Engine) PushScraper(scrapers ...*Scraper) *Engine {
 	return engine
 }
 
-func (engine *Engine) PushRequestMiddleware(middleware ...RequestMiddlewareFunc) *Engine {
+func (engine *Engine) UseMiddleware(middleware ...RequestMiddlewareFunc) *Engine {
 	engine.requestMiddleware = append(engine.requestMiddleware, middleware...)
+	return engine
+}
+
+func (engine *Engine) UseExtension(extensions ...Extension) *Engine {
+	engine.extensions = append(engine.extensions, extensions...)
 	return engine
 }
 
@@ -422,8 +433,8 @@ func NewEngine() (r *Engine) {
 		limitFail:  500,
 		finished:   0,
 		chDone:     make(chan *Scraper),
-		chScraped:  make(chan ScrapingResultProxy),
-		chItems:    make(chan Saveable, 10),
+		chScraped:  make(chan ScrapedItem),
+		chItems:    make(chan SaveableItem, 10),
 	}
 	return
 }
@@ -454,8 +465,8 @@ func NewScraper(name string, sourceUrl string, extractor Extractable) (s *Scrape
 	return
 }
 
-func NewResultProxy(url string, scraper Scraper, resp http.Response) ScrapingResultProxy {
-	return ScrapingResultProxy{
+func NewResultProxy(url string, scraper Scraper, resp http.Response) ScrapedItem {
+	return ScrapedItem{
 		Response: resp,
 		Url:      url,
 		scraper:  scraper,
@@ -494,7 +505,7 @@ func GetWriter(engine *Engine) (*os.File, recordWriter) {
 	return nil, nil
 }
 
-func SaveItem(item Saveable, writer recordWriter) {
+func SaveItem(item SaveableItem, writer recordWriter) {
 	if writer == nil {
 		return
 	}

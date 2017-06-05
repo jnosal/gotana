@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+type RequestMiddlewareFunc func(request *http.Request) *http.Request
+
 func DelAcceptEncodingMiddleware(request *http.Request) *http.Request {
 	request.Header.Del("Accept-Encoding")
 	return request
