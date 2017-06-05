@@ -17,7 +17,12 @@ import (
 
 type Saveable interface {
 	Validate() bool
-	CSV() []string
+	RecordData() []string
+}
+
+type recordWriter interface {
+	Write(record []string) error
+	Flush()
 }
 
 type ScrapingHandlerFunc func(ScrapingResultProxy, chan<- Saveable)
@@ -128,7 +133,7 @@ type Engine struct {
 	chScraped         chan ScrapingResultProxy
 	chItems           chan Saveable
 	TcpAddress        string
-	OutFile           *os.File
+	OutFileName       string
 	Meta              *EngineMeta
 }
 
@@ -148,7 +153,11 @@ func (engine Engine) Done() bool {
 func (engine *Engine) scrapingLoop() {
 	Logger().Info("Starting scraping loop")
 
-	writer := GetWriter(engine)
+	f, writer := GetWriter(engine)
+
+	if f != nil {
+		defer f.Close()
+	}
 
 	for {
 		select {
@@ -209,9 +218,6 @@ func (engine *Engine) Cleanup() {
 	close(engine.chDone)
 	close(engine.chScraped)
 	close(engine.chItems)
-	if engine.OutFile != nil {
-		engine.OutFile.Close()
-	}
 }
 
 func (engine *Engine) PushScraper(scrapers ...*Scraper) *Engine {
@@ -231,11 +237,8 @@ func (engine *Engine) PushRequestMiddleware(middleware ...RequestMiddlewareFunc)
 
 func (engine *Engine) FromConfig(config *SpiderConfig) *Engine {
 	engine.TcpAddress = config.TcpAddress
-	if config.OutFileName != "" {
-		if f, err := os.OpenFile(config.OutFileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666); err == nil {
-			engine.OutFile = f
-		}
-	}
+	engine.OutFileName = config.OutFileName
+
 	for _, data := range config.Spiders {
 		extractor := defaultExtractor()
 		switch data.Extractor {
@@ -476,16 +479,23 @@ func defaultExtractor() Extractable {
 	return &LinkExtractor{}
 }
 
-func GetWriter(engine *Engine) *csv.Writer {
-	if engine.OutFile != nil {
-		return csv.NewWriter(engine.OutFile)
+func GetWriter(engine *Engine) (*os.File, recordWriter) {
+	if f, err := os.OpenFile(engine.OutFileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666); err == nil && f != nil {
+		switch {
+		case strings.HasSuffix(engine.OutFileName, ".csv"):
+			Logger().Infof("Using CSV writer.")
+			return f, csv.NewWriter(f)
+		default:
+			Logger().Warningf("Cannot write to: %s. Unsupported extension.", engine.OutFileName)
+			return nil, nil
+		}
+
 	}
-	return nil
+	return nil, nil
 }
 
-func SaveItem(item Saveable, writer *csv.Writer) {
+func SaveItem(item Saveable, writer recordWriter) {
 	if writer == nil {
-		Logger().Warning("Cannot write to file, no output file specified.")
 		return
 	}
 
@@ -495,7 +505,7 @@ func SaveItem(item Saveable, writer *csv.Writer) {
 	}
 
 	defer writer.Flush()
-	writer.Write(item.CSV())
+	writer.Write(item.RecordData())
 }
 
 type SpiderConfig struct {

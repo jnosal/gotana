@@ -12,7 +12,7 @@ func (item Item) Validate() bool {
 	return true
 }
 
-func (item Item) CSV() []string {
+func (item Item) RecordData() []string {
 	return []string{"TEST", "DATA"}
 }
 
