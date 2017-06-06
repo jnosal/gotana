@@ -225,9 +225,12 @@ func (engine *Engine) scrapingLoop() {
 			if !ok {
 				break
 			}
-			engine.notifyExtensions(EVENT_SAVEABLE_EXTRACTED,
-				extensionParameters{scraper: item.Scraper(), item: item})
 
+			scraper := item.Scraper()
+			engine.notifyExtensions(EVENT_SAVEABLE_EXTRACTED,
+				extensionParameters{scraper: scraper, item: item})
+
+			scraper.engine.Meta.IncrSaved(scraper)
 			SaveItem(item, writer)
 		}
 		if engine.Done() {
@@ -417,6 +420,7 @@ func (scraper *Scraper) Start() {
 }
 
 func (scraper *Scraper) Notify(url string, resp *http.Response) {
+	scraper.engine.Meta.IncrScraped(scraper)
 	scraper.engine.chScraped <- NewResultProxy(url, scraper, *resp)
 }
 
@@ -473,8 +477,8 @@ func (scraper *Scraper) SetHandler(handler ScrapingHandlerFunc) *Scraper {
 
 func (scraper *Scraper) String() (result string) {
 	stats := scraper.engine.Meta.ScraperStats[scraper.Name]
-	result = fmt.Sprintf("<Scraper: %s>. Crawled: %d, successful: %d, failed: %d.",
-		scraper.Domain, stats.crawled, stats.successful, stats.failed)
+	result = fmt.Sprintf("<Scraper: %s>. Crawled: %d, successful: %d, failed: %d. Items scraped: %d, saved: %d",
+		scraper.Domain, stats.crawled, stats.successful, stats.failed, stats.scraped, stats.saved)
 	return
 }
 

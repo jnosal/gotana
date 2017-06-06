@@ -10,6 +10,8 @@ type ScraperMeta struct {
 	crawled    int
 	successful int
 	failed     int
+	scraped    int
+	saved      int
 }
 
 type EngineMeta struct {
@@ -19,6 +21,20 @@ type EngineMeta struct {
 	RequestsTotal int
 	LastRequest   *http.Request
 	LastResponse  *http.Response
+}
+
+func (meta *EngineMeta) IncrSaved(scraper *Scraper) {
+	meta.statsMutex.Lock()
+	defer meta.statsMutex.Unlock()
+	stats := meta.ScraperStats[scraper.Name]
+	stats.saved += 1
+}
+
+func (meta *EngineMeta) IncrScraped(scraper *Scraper) {
+	meta.statsMutex.Lock()
+	defer meta.statsMutex.Unlock()
+	stats := meta.ScraperStats[scraper.Name]
+	stats.scraped += 1
 }
 
 func (meta *EngineMeta) UpdateRequestStats(scraper *Scraper, isSuccessful bool, request *http.Request, response *http.Response) {
@@ -42,6 +58,8 @@ func NewScraperMeta() (m *ScraperMeta) {
 		failed:     0,
 		crawled:    0,
 		successful: 0,
+		scraped:    0,
+		saved:      0,
 	}
 	return
 }
