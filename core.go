@@ -16,8 +16,17 @@ import (
 )
 
 type SaveableItem interface {
+	Scraper() *Scraper
 	Validate() bool
 	RecordData() []string
+}
+
+type ScraperMixin struct {
+	Proxy ScrapedItem
+}
+
+func (item ScraperMixin) Scraper() *Scraper {
+	return item.Proxy.scraper
 }
 
 type recordWriter interface {
@@ -45,6 +54,11 @@ func GetHref(t html.Token) (ok bool, href string) {
 	}
 
 	return
+}
+
+type extensionParameters struct {
+	scraper *Scraper
+	item    SaveableItem
 }
 
 type Extension interface {
@@ -91,7 +105,7 @@ func (extractor *LinkExtractor) Extract(r io.ReadCloser, callback func(string)) 
 type ScrapedItem struct {
 	Url      string
 	Response http.Response
-	scraper  Scraper
+	scraper  *Scraper
 }
 
 func (proxy ScrapedItem) String() (result string) {
@@ -145,8 +159,25 @@ type Engine struct {
 	Meta              *EngineMeta
 }
 
-func (engine *Engine) notifyExtensions(event string) {
-	Logger().Warning(event)
+func (engine *Engine) notifyExtensions(event string, prm extensionParameters) {
+	go func() {
+		switch event {
+		case EVENT_SCRAPER_OPENED:
+			for _, extension := range engine.extensions {
+				extension.ScraperStarted(prm.scraper)
+			}
+		case EVENT_SCRAPER_CLOSED:
+			for _, extension := range engine.extensions {
+				extension.ScraperStopped(prm.scraper)
+			}
+		case EVENT_SAVEABLE_EXTRACTED:
+			for _, extension := range engine.extensions {
+				extension.ItemScraped(prm.scraper, prm.item)
+			}
+		default:
+			panic("Inappropriate event: " + event)
+		}
+	}()
 }
 
 func (engine *Engine) SetHandler(handler ScrapingHandlerFunc) *Engine {
@@ -194,7 +225,9 @@ func (engine *Engine) scrapingLoop() {
 			if !ok {
 				break
 			}
-			engine.notifyExtensions(EVENT_SAVEABLE_EXTRACTED)
+			engine.notifyExtensions(EVENT_SAVEABLE_EXTRACTED,
+				extensionParameters{scraper: item.Scraper(), item: item})
+
 			SaveItem(item, writer)
 		}
 		if engine.Done() {
@@ -350,7 +383,8 @@ func (scraper *Scraper) RunExtractor(resp http.Response) {
 
 func (scraper *Scraper) Stop() {
 	Logger().Infof("Stopping %s", scraper)
-	scraper.engine.notifyExtensions(EVENT_SCRAPER_CLOSED)
+	scraper.engine.notifyExtensions(EVENT_SCRAPER_CLOSED,
+		extensionParameters{scraper: scraper})
 
 	scraper.chDone <- struct{}{}
 	scraper.engine.chDone <- scraper
@@ -358,7 +392,8 @@ func (scraper *Scraper) Stop() {
 
 func (scraper *Scraper) Start() {
 	Logger().Infof("Starting: %s", scraper)
-	scraper.engine.notifyExtensions(EVENT_SCRAPER_OPENED)
+	scraper.engine.notifyExtensions(EVENT_SCRAPER_OPENED,
+		extensionParameters{scraper: scraper})
 
 	scraper.chRequestUrl <- scraper.baseUrl
 	duration := time.Duration(scraper.requestLimit)
@@ -382,7 +417,7 @@ func (scraper *Scraper) Start() {
 }
 
 func (scraper *Scraper) Notify(url string, resp *http.Response) {
-	scraper.engine.chScraped <- NewResultProxy(url, *scraper, *resp)
+	scraper.engine.chScraped <- NewResultProxy(url, scraper, *resp)
 }
 
 func (engine *Engine) PrepareRequest(request *http.Request) *http.Request {
@@ -483,7 +518,7 @@ func NewScraper(name string, sourceUrl string, requestLimit int, extractor Extra
 	return
 }
 
-func NewResultProxy(url string, scraper Scraper, resp http.Response) ScrapedItem {
+func NewResultProxy(url string, scraper *Scraper, resp http.Response) ScrapedItem {
 	return ScrapedItem{
 		Response: resp,
 		Url:      url,

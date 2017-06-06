@@ -6,6 +6,7 @@ import (
 )
 
 type Item struct {
+	gotana.ScraperMixin
 }
 
 func (item Item) Validate() bool {
@@ -27,7 +28,9 @@ func GlobalHandler(proxy gotana.ScrapedItem, items chan<- gotana.SaveableItem) {
 			return
 		}
 		title := document.Find("title").First().Text()
-		items <- Item{}
+		item := Item{}
+		item.Proxy = proxy
+		items <- item
 		gotana.Logger().Noticef("%s --> %s", proxy.Url, title)
 	}
 }
