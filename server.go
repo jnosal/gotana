@@ -124,6 +124,18 @@ func CommandStats(message string, conn net.Conn, server *TCPServer) {
 	}
 }
 
+func CommandList(message string, conn net.Conn, server *TCPServer) {
+	names := make([]string, len(server.engine.scrapers))
+
+	i := 0
+	for _, scraper := range server.engine.scrapers {
+		names[i] = scraper.Name
+		i++
+	}
+
+	writeLine(conn, fmt.Sprintf("Running scrapers: %s", strings.Join(names, ", ")))
+}
+
 func NewTCPServer(address string, engine *Engine) (server *TCPServer) {
 	server = &TCPServer{
 		address:  address,
@@ -131,6 +143,7 @@ func NewTCPServer(address string, engine *Engine) (server *TCPServer) {
 		messages: make(chan TCPMessage),
 		commands: make(map[string]interface{}),
 	}
+	server.AddCommand("LIST", CommandList)
 	server.AddCommand("STATS", CommandStats)
 	server.AddCommand("HELP", CommandHelp)
 	server.AddCommand("STOP", CommandStop)

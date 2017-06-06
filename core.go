@@ -268,7 +268,7 @@ func (engine *Engine) Cleanup() {
 
 func (engine *Engine) PushScraper(scrapers ...*Scraper) *Engine {
 	for _, scraper := range scrapers {
-		engine.Meta.ScraperStats[scraper.name] = NewScraperMeta()
+		engine.Meta.ScraperStats[scraper.Name] = NewScraperMeta()
 		scraper.engine = engine
 		Logger().Debugf("Attached new scraper %s", scraper)
 	}
@@ -312,9 +312,9 @@ type Scraper struct {
 	handler      ScrapingHandlerFunc
 	fetchMutex   *sync.Mutex
 	crawledMutex *sync.Mutex
-	name         string
-	domain       string
-	baseUrl      string
+	Name         string
+	Domain       string
+	BaseUrl      string
 	CurrentUrl   string
 	fetchedUrls  map[string]bool
 	engine       *Engine
@@ -335,7 +335,7 @@ func (scraper *Scraper) MarkAsFetched(url string) {
 func (scraper *Scraper) CheckIfShouldStop() (ok bool) {
 	scraper.crawledMutex.Lock()
 	defer scraper.crawledMutex.Unlock()
-	stats := scraper.engine.Meta.ScraperStats[scraper.name]
+	stats := scraper.engine.Meta.ScraperStats[scraper.Name]
 
 	if stats.crawled == scraper.engine.limitCrawl {
 		Logger().Warningf("Crawl limit exceeded: %s", scraper)
@@ -359,11 +359,11 @@ func (scraper *Scraper) CheckIfFetched(url string) (ok bool) {
 }
 
 func (scraper *Scraper) CheckUrl(sourceUrl string) (ok bool, url string) {
-	if strings.Contains(sourceUrl, scraper.domain) && strings.Index(sourceUrl, "http") == 0 {
+	if strings.Contains(sourceUrl, scraper.Domain) && strings.Index(sourceUrl, "http") == 0 {
 		url = sourceUrl
 		ok = true
 	} else if strings.Index(sourceUrl, "/") == 0 {
-		url = scraper.baseUrl + sourceUrl
+		url = scraper.BaseUrl + sourceUrl
 		ok = true
 	}
 	return
@@ -395,7 +395,7 @@ func (scraper *Scraper) Start() {
 	scraper.engine.notifyExtensions(EVENT_SCRAPER_OPENED,
 		extensionParameters{scraper: scraper})
 
-	scraper.chRequestUrl <- scraper.baseUrl
+	scraper.chRequestUrl <- scraper.BaseUrl
 	duration := time.Duration(scraper.requestLimit)
 
 	if scraper.requestLimit == 0 {
@@ -472,9 +472,9 @@ func (scraper *Scraper) SetHandler(handler ScrapingHandlerFunc) *Scraper {
 }
 
 func (scraper *Scraper) String() (result string) {
-	stats := scraper.engine.Meta.ScraperStats[scraper.name]
+	stats := scraper.engine.Meta.ScraperStats[scraper.Name]
 	result = fmt.Sprintf("<Scraper: %s>. Crawled: %d, successful: %d, failed: %d.",
-		scraper.domain, stats.crawled, stats.successful, stats.failed)
+		scraper.Domain, stats.crawled, stats.successful, stats.failed)
 	return
 }
 
@@ -504,9 +504,9 @@ func NewScraper(name string, sourceUrl string, requestLimit int, extractor Extra
 	}
 
 	s = &Scraper{
-		name:         name,
-		domain:       parsed.Host,
-		baseUrl:      sourceUrl,
+		Name:         name,
+		Domain:       parsed.Host,
+		BaseUrl:      sourceUrl,
 		fetchedUrls:  make(map[string]bool),
 		crawledMutex: &sync.Mutex{},
 		fetchMutex:   &sync.Mutex{},

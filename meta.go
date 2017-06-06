@@ -24,7 +24,7 @@ type EngineMeta struct {
 func (meta *EngineMeta) UpdateStats(scraper *Scraper, isSuccessful bool, request *http.Request, response *http.Response) {
 	meta.statsMutex.Lock()
 	defer meta.statsMutex.Unlock()
-	stats := meta.ScraperStats[scraper.name]
+	stats := meta.ScraperStats[scraper.Name]
 	meta.RequestsTotal += 1
 	meta.LastRequest = request
 	meta.LastResponse = response
