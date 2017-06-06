@@ -450,7 +450,7 @@ func (scraper *Scraper) Fetch(url string) (resp *http.Response, err error) {
 
 	isSuccessful := (err == nil)
 
-	scraper.engine.Meta.UpdateStats(scraper, isSuccessful, req, resp)
+	scraper.engine.Meta.UpdateRequestStats(scraper, isSuccessful, req, resp)
 
 	if err == nil {
 		scraper.Notify(url, resp)
