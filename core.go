@@ -28,13 +28,12 @@ type recordWriter interface {
 type ScrapingHandlerFunc func(ScrapedItem, chan<- SaveableItem)
 
 const (
-	EVENT_SCRAPER_OPENED      = "SCRAPER_OPENED"
-	EVENT_SCRAPER_CLOSED      = "SCRAPER_CLOSED"
-	EVENT_SAVEABLE_EXTRACTED  = "SAVEABLE_EXTRACTED"
-	REQUEST_LIMIT_MILLISECOND = 100
-	TIMEOUT_DIALER            = time.Duration(time.Second * 30)
-	TIMEOUT_REQUEST           = time.Duration(time.Second * 30)
-	TIMEOUT_TLS               = time.Duration(time.Second * 10)
+	EVENT_SCRAPER_OPENED     = "SCRAPER_OPENED"
+	EVENT_SCRAPER_CLOSED     = "SCRAPER_CLOSED"
+	EVENT_SAVEABLE_EXTRACTED = "SAVEABLE_EXTRACTED"
+	TIMEOUT_DIALER           = time.Duration(time.Second * 30)
+	TIMEOUT_REQUEST          = time.Duration(time.Second * 30)
+	TIMEOUT_TLS              = time.Duration(time.Second * 10)
 )
 
 func GetHref(t html.Token) (ok bool, href string) {
@@ -254,19 +253,19 @@ func (engine *Engine) UseExtension(extensions ...Extension) *Engine {
 	return engine
 }
 
-func (engine *Engine) FromConfig(config *SpiderConfig) *Engine {
+func (engine *Engine) FromConfig(config *ScraperConfig) *Engine {
 	engine.TcpAddress = config.TcpAddress
 	engine.OutFileName = config.OutFileName
 
-	for _, data := range config.Spiders {
+	for _, configData := range config.Scrapers {
 		extractor := defaultExtractor()
-		switch data.Extractor {
+		switch configData.Extractor {
 		case "link":
 			extractor = &LinkExtractor{}
 		default:
 			break
 		}
-		scraper := NewScraper(data.Name, data.Url, extractor)
+		scraper := NewScraper(configData.Name, configData.Url, configData.RequestLimit, extractor)
 		engine.PushScraper(scraper)
 	}
 
@@ -289,6 +288,7 @@ type Scraper struct {
 	extractor    Extractable
 	chDone       chan struct{}
 	chRequestUrl chan string
+	requestLimit int
 }
 
 func (scraper *Scraper) MarkAsFetched(url string) {
@@ -361,8 +361,13 @@ func (scraper *Scraper) Start() {
 	scraper.engine.notifyExtensions(EVENT_SCRAPER_OPENED)
 
 	scraper.chRequestUrl <- scraper.baseUrl
+	duration := time.Duration(scraper.requestLimit)
 
-	limiter := time.Tick(time.Millisecond * REQUEST_LIMIT_MILLISECOND)
+	if scraper.requestLimit == 0 {
+		duration = defaultRequestLimit()
+	}
+
+	limiter := time.Tick(time.Millisecond * duration)
 
 	for {
 		select {
@@ -451,7 +456,7 @@ func NewEngine() (r *Engine) {
 	return
 }
 
-func NewScraper(name string, sourceUrl string, extractor Extractable) (s *Scraper) {
+func NewScraper(name string, sourceUrl string, requestLimit int, extractor Extractable) (s *Scraper) {
 	parsed, err := URL.Parse(sourceUrl)
 	if err != nil {
 		Logger().Infof("Inappropriate URL: %s", sourceUrl)
@@ -473,6 +478,7 @@ func NewScraper(name string, sourceUrl string, extractor Extractable) (s *Scrape
 		extractor:    extractor,
 		chDone:       make(chan struct{}),
 		chRequestUrl: make(chan string, 5),
+		requestLimit: requestLimit,
 	}
 	return
 }
@@ -500,6 +506,10 @@ func NewHTTPClient() (client *http.Client) {
 
 func defaultExtractor() Extractable {
 	return &LinkExtractor{}
+}
+
+func defaultRequestLimit() time.Duration {
+	return time.Duration(1)
 }
 
 func GetWriter(engine *Engine) (*os.File, recordWriter) {
@@ -531,19 +541,20 @@ func SaveItem(item SaveableItem, writer recordWriter) {
 	writer.Write(item.RecordData())
 }
 
-type SpiderConfig struct {
+type ScraperConfig struct {
 	Project     string `required:"true"`
 	TcpAddress  string
 	OutFileName string
-	Spiders     []struct {
-		Extractor string
-		Name      string `required:"true"`
-		Url       string `required:"true"`
+	Scrapers    []struct {
+		RequestLimit int `required:"true"`
+		Extractor    string
+		Name         string `required:"true"`
+		Url          string `required:"true"`
 	}
 }
 
-func NewSpiderConfig(file string) (config *SpiderConfig) {
-	config = &SpiderConfig{}
+func NewSpiderConfig(file string) (config *ScraperConfig) {
+	config = &ScraperConfig{}
 	ProcessFile(config, file)
 	return
 }
