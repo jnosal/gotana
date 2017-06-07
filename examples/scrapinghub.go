@@ -18,7 +18,7 @@ func (item AItem) RecordData() []string {
 }
 
 func ParseScrapingHub(proxy gotana.ScrapedItem, items chan<- gotana.SaveableItem) {
-	//defer gotana.SilentRecover("ParseScrapingHub")
+	defer gotana.SilentRecover("ParseScrapingHub")
 
 	gotana.Logger().Debug(proxy)
 	document, err := proxy.HTMLDocument()
