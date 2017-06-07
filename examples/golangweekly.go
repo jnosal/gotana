@@ -36,7 +36,7 @@ func GlobalHandler(proxy gotana.ScrapedItem, items chan<- gotana.SaveableItem) {
 }
 
 func main() {
-	config := gotana.NewSpiderConfig("sample1.yml")
+	config := gotana.NewSpiderConfig("golangweekly.yml")
 	engine := gotana.NewEngine().SetHandler(GlobalHandler)
 	engine.FromConfig(config)
 	engine.UseMiddleware(gotana.DelAcceptEncodingMiddleware).

@@ -1,0 +1,6 @@
+project: test
+tcpaddress: localhost:7654
+scrapers:
+- name: scrapinghub
+  url: https://blog.scrapinghub.com
+  requestlimit: 200

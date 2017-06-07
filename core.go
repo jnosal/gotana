@@ -1,11 +1,13 @@
 package gotana
 
 import (
+	"bytes"
 	"encoding/csv"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"golang.org/x/net/html"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	URL "net/url"
@@ -104,7 +106,7 @@ func (extractor *LinkExtractor) Extract(r io.ReadCloser, callback func(string)) 
 
 type ScrapedItem struct {
 	Url      string
-	Response http.Response
+	Response *http.Response
 	scraper  *Scraper
 }
 
@@ -269,6 +271,15 @@ func (engine *Engine) Cleanup() {
 	close(engine.chItems)
 }
 
+func (engine *Engine) GetScraper(name string) *Scraper {
+	for _, scraper := range engine.scrapers {
+		if scraper.Name == name {
+			return scraper
+		}
+	}
+	return nil
+}
+
 func (engine *Engine) PushScraper(scrapers ...*Scraper) *Engine {
 	for _, scraper := range scrapers {
 		engine.Meta.ScraperStats[scraper.Name] = NewScraperMeta()
@@ -372,7 +383,7 @@ func (scraper *Scraper) CheckUrl(sourceUrl string) (ok bool, url string) {
 	return
 }
 
-func (scraper *Scraper) RunExtractor(resp http.Response) {
+func (scraper *Scraper) RunExtractor(resp *http.Response) {
 	defer SilentRecover("EXTRACTOR")
 
 	scraper.extractor.Extract(resp.Body, func(url string) {
@@ -421,7 +432,7 @@ func (scraper *Scraper) Start() {
 
 func (scraper *Scraper) Notify(url string, resp *http.Response) {
 	scraper.engine.Meta.IncrScraped(scraper)
-	scraper.engine.chScraped <- NewResultProxy(url, scraper, *resp)
+	scraper.engine.chScraped <- NewScrapedItem(url, scraper, resp)
 }
 
 func (engine *Engine) PrepareRequest(request *http.Request) *http.Request {
@@ -458,7 +469,7 @@ func (scraper *Scraper) Fetch(url string) (resp *http.Response, err error) {
 
 	if err == nil {
 		scraper.Notify(url, resp)
-		scraper.RunExtractor(*resp)
+		scraper.RunExtractor(resp)
 	} else {
 		Logger().Warningf("Failed to crawl %s", url)
 		Logger().Warning(err)
@@ -522,7 +533,10 @@ func NewScraper(name string, sourceUrl string, requestLimit int, extractor Extra
 	return
 }
 
-func NewResultProxy(url string, scraper *Scraper, resp http.Response) ScrapedItem {
+func NewScrapedItem(url string, scraper *Scraper, resp *http.Response) ScrapedItem {
+	bodyBytes, _ := ioutil.ReadAll(resp.Body)
+	resp.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+
 	return ScrapedItem{
 		Response: resp,
 		Url:      url,

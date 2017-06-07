@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/op/go-logging"
 	yaml "gopkg.in/yaml.v2"
+	"io"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -52,4 +53,13 @@ func GetMapKeys(m map[string]interface{}) []string {
 	}
 
 	return keys
+}
+
+func DisplayBytes(bytes []byte) {
+	Logger().Info(string(bytes))
+}
+
+func DisplayResponseBody(r io.Reader) {
+	bodyBytes, _ := ioutil.ReadAll(r)
+	DisplayBytes(bodyBytes)
 }
