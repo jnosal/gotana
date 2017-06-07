@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/PuerkitoBio/goquery"
 	"gotana"
-	"strings"
 )
 
 type AItem struct {
@@ -30,7 +29,7 @@ func ParseScrapingHub(proxy gotana.ScrapedItem, items chan<- gotana.SaveableItem
 		gotana.Logger().Info("DUPA")
 	}
 	document.Find("h2.entry-title").Each(func(i int, s *goquery.Selection) {
-		gotana.Logger().Notice(strings.Trim(s.Text()))
+		gotana.Logger().Notice(gotana.StripString(s.Text()))
 	})
 
 }

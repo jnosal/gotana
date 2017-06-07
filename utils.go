@@ -63,3 +63,14 @@ func DisplayResponseBody(r io.Reader) {
 	bodyBytes, _ := ioutil.ReadAll(r)
 	DisplayBytes(bodyBytes)
 }
+
+func StripString(s string) string {
+	result := s
+	stripCharacters := []string{" ", "\n", "\t"}
+
+	for _, char := range stripCharacters {
+		result = strings.Replace(result, char, "", -1)
+	}
+
+	return result
+}
