@@ -27,6 +27,11 @@ type ScraperMixin struct {
 	Proxy ScrapedItem
 }
 
+func (s *ScraperMixin) SetProxy(proxy ScrapedItem) *ScraperMixin {
+	s.Proxy = proxy
+	return s
+}
+
 func (item ScraperMixin) Scraper() *Scraper {
 	return item.Proxy.scraper
 }

@@ -7,6 +7,7 @@ import (
 
 type AItem struct {
 	gotana.ScraperMixin
+	Title string
 }
 
 func (item AItem) Validate() bool {
@@ -14,7 +15,7 @@ func (item AItem) Validate() bool {
 }
 
 func (item AItem) RecordData() []string {
-	return []string{"TEST", "DATA"}
+	return []string{item.Title}
 }
 
 func ParseScrapingHub(proxy gotana.ScrapedItem, items chan<- gotana.SaveableItem) {
@@ -25,11 +26,11 @@ func ParseScrapingHub(proxy gotana.ScrapedItem, items chan<- gotana.SaveableItem
 	if err != nil {
 		gotana.Logger().Error(err.Error())
 		return
-	} else {
-		gotana.Logger().Info("DUPA")
 	}
 	document.Find("h2.entry-title").Each(func(i int, s *goquery.Selection) {
-		gotana.Logger().Notice(gotana.StripString(s.Text()))
+		item := AItem{Title: gotana.StripString(s.Text())}
+		item.SetProxy(proxy)
+		items <- item
 	})
 
 }
