@@ -12,8 +12,10 @@ import (
 	"net/http"
 	URL "net/url"
 	"os"
+	"os/signal"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -151,6 +153,7 @@ type Runnable interface {
 }
 
 type Engine struct {
+	wg                sync.WaitGroup
 	limitCrawl        int
 	limitFail         int
 	handler           ScrapingHandlerFunc
@@ -158,7 +161,7 @@ type Engine struct {
 	scrapers          []*Scraper
 	requestMiddleware []RequestMiddlewareFunc
 	extensions        []Extension
-	chDone            chan *Scraper
+	chDone            chan struct{}
 	chScraped         chan ScrapedItem
 	chItems           chan SaveableItem
 	TcpAddress        string
@@ -221,13 +224,6 @@ func (engine *Engine) scrapingLoop() {
 			if proxy.scraper.handler != nil {
 				proxy.scraper.handler(proxy, engine.chItems)
 			}
-
-		case scraper, ok := <-engine.chDone:
-			Logger().Infof("Stopped %s", scraper)
-			engine.IncrFinishedCounter()
-			if !ok {
-				break
-			}
 		case item, ok := <-engine.chItems:
 			if !ok {
 				break
@@ -239,9 +235,6 @@ func (engine *Engine) scrapingLoop() {
 
 			scraper.engine.Meta.IncrSaved(scraper)
 			SaveItem(item, writer)
-		}
-		if engine.Done() {
-			break
 		}
 	}
 }
@@ -260,13 +253,29 @@ func (engine *Engine) Run() {
 		go scraper.Start()
 	}
 
+	sigChan := make(chan os.Signal)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	go engine.startTCPServer()
-	engine.scrapingLoop()
+	go engine.scrapingLoop()
+
+	select {
+	case <-engine.chDone:
+		if engine.Done() {
+			engine.wg.Wait()
+			Logger().Warning("All scrapers have stopped. Exitting...")
+			return
+		}
+	case sig := <-sigChan:
+		Logger().Warningf("Got signal: %s. Gracefully stopping...", sig)
+		engine.StopScrapers()
+		engine.wg.Wait()
+	}
+
 }
 
 func (engine *Engine) StopScrapers() {
 	for _, scraper := range engine.scrapers {
-		go scraper.Stop()
+		scraper.Stop()
 	}
 }
 
@@ -401,15 +410,16 @@ func (scraper *Scraper) RunExtractor(resp *http.Response) {
 }
 
 func (scraper *Scraper) Stop() {
-	Logger().Infof("Stopping %s", scraper)
+	Logger().Warningf("Stopping %s", scraper)
 	scraper.engine.notifyExtensions(EVENT_SCRAPER_CLOSED,
 		extensionParameters{scraper: scraper})
 
 	scraper.chDone <- struct{}{}
-	scraper.engine.chDone <- scraper
+	scraper.engine.wg.Done()
 }
 
 func (scraper *Scraper) Start() {
+	scraper.engine.wg.Add(1)
 	Logger().Infof("Starting: %s", scraper)
 	scraper.engine.notifyExtensions(EVENT_SCRAPER_OPENED,
 		extensionParameters{scraper: scraper})
@@ -429,6 +439,9 @@ func (scraper *Scraper) Start() {
 			<-limiter
 			go scraper.Fetch(url)
 		case <-scraper.chDone:
+			Logger().Warningf("Stopped %s", scraper)
+			scraper.engine.IncrFinishedCounter()
+			scraper.engine.chDone <- struct{}{}
 			return
 		}
 	}
@@ -504,7 +517,7 @@ func NewEngine() (r *Engine) {
 		limitCrawl: 10000,
 		limitFail:  500,
 		finished:   0,
-		chDone:     make(chan *Scraper),
+		chDone:     make(chan struct{}),
 		chScraped:  make(chan ScrapedItem),
 		chItems:    make(chan SaveableItem, 10),
 	}
