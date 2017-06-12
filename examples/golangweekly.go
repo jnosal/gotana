@@ -41,5 +41,5 @@ func main() {
 	engine.FromConfig(config)
 	engine.UseMiddleware(gotana.DelAcceptEncodingMiddleware).
 		UseMiddleware(gotana.RandomUserAgentMiddleware)
-	engine.Run()
+	engine.Start()
 }

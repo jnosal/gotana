@@ -19,6 +19,18 @@ import (
 	"time"
 )
 
+const (
+	EVENT_SCRAPER_OPENED     = "SCRAPER_OPENED"
+	EVENT_SCRAPER_CLOSED     = "SCRAPER_CLOSED"
+	EVENT_SAVEABLE_EXTRACTED = "SAVEABLE_EXTRACTED"
+	STATE_INITIAL            = "INTITIAL"
+	STATE_RUNNING            = "RUNNING"
+	STATE_STOPPING           = "STOPPING"
+	TIMEOUT_DIALER           = time.Duration(time.Second * 30)
+	TIMEOUT_REQUEST          = time.Duration(time.Second * 30)
+	TIMEOUT_TLS              = time.Duration(time.Second * 10)
+)
+
 type SaveableItem interface {
 	Scraper() *Scraper
 	Validate() bool
@@ -44,15 +56,6 @@ type recordWriter interface {
 }
 
 type ScrapingHandlerFunc func(ScrapedItem, chan<- SaveableItem)
-
-const (
-	EVENT_SCRAPER_OPENED     = "SCRAPER_OPENED"
-	EVENT_SCRAPER_CLOSED     = "SCRAPER_CLOSED"
-	EVENT_SAVEABLE_EXTRACTED = "SAVEABLE_EXTRACTED"
-	TIMEOUT_DIALER           = time.Duration(time.Second * 30)
-	TIMEOUT_REQUEST          = time.Duration(time.Second * 30)
-	TIMEOUT_TLS              = time.Duration(time.Second * 10)
-)
 
 func GetHref(t html.Token) (ok bool, href string) {
 	for _, a := range t.Attr {
@@ -148,11 +151,8 @@ func (proxy ScrapedItem) HTMLDocument() (document *goquery.Document, err error) 
 	return
 }
 
-type Runnable interface {
-	Run() (err error)
-}
-
 type Engine struct {
+	state             string
 	wg                sync.WaitGroup
 	limitCrawl        int
 	limitFail         int
@@ -246,8 +246,10 @@ func (engine *Engine) startTCPServer() {
 	}
 }
 
-func (engine *Engine) Run() {
+func (engine *Engine) Start() {
 	defer engine.Cleanup()
+
+	engine.state = STATE_RUNNING
 
 	for _, scraper := range engine.scrapers {
 		go scraper.Start()
@@ -255,6 +257,7 @@ func (engine *Engine) Run() {
 
 	sigChan := make(chan os.Signal)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
 	go engine.startTCPServer()
 	go engine.scrapingLoop()
 
@@ -262,21 +265,25 @@ func (engine *Engine) Run() {
 	case <-engine.chDone:
 		if engine.Done() {
 			engine.wg.Wait()
-			Logger().Warning("All scrapers have stopped. Exitting...")
+			Logger().Warning("All scrapers have stopped. Exiting...")
 			return
 		}
 	case sig := <-sigChan:
 		Logger().Warningf("Got signal: %s. Gracefully stopping...", sig)
-		engine.StopScrapers()
-		engine.wg.Wait()
+		engine.Stop()
+		return
 	}
 
 }
 
-func (engine *Engine) StopScrapers() {
+func (engine *Engine) Stop() {
+	engine.state = STATE_STOPPING
+
 	for _, scraper := range engine.scrapers {
 		scraper.Stop()
 	}
+
+	engine.wg.Wait()
 }
 
 func (engine *Engine) Cleanup() {
@@ -513,6 +520,7 @@ func (scraper *Scraper) String() (result string) {
 
 func NewEngine() (r *Engine) {
 	r = &Engine{
+		state:      STATE_INITIAL,
 		Meta:       NewEngineMeta(),
 		limitCrawl: 10000,
 		limitFail:  500,

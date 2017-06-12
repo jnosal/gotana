@@ -42,5 +42,5 @@ func main() {
 	engine.UseMiddleware(gotana.RandomUserAgentMiddleware)
 
 	engine.GetScraper("scrapinghub").SetHandler(ParseScrapingHub)
-	engine.Run()
+	engine.Start()
 }

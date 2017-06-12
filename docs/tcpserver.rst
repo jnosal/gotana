@@ -19,10 +19,6 @@ Available commands
 +--------+---------------------------------------------------------------------------+
 | STATS  | Displays statisting regarding scrapers: fetched item, requests, etc...    |
 +--------+---------------------------------------------------------------------------+
-| STOP   | Stops & closes entire engine (awaits scrapers cleanup)                    |
-+--------+---------------------------------------------------------------------------+
-| PAUSE  | Stops entire engine, can be resumed afterwards                            |
-+--------+---------------------------------------------------------------------------+
 | RESUME | Starts engine after pause (awaits scrapers cleanup)                       |
 +--------+---------------------------------------------------------------------------+
 
