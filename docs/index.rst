@@ -5,6 +5,7 @@ User's Guide
    :maxdepth: 2
 
    configuration
+   exports
    extensions
    items
    middleware

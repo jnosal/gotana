@@ -136,6 +136,15 @@ func CommandList(message string, conn net.Conn, server *TCPServer) {
 	writeLine(conn, fmt.Sprintf("Running scrapers: %s", strings.Join(names, ", ")))
 }
 
+func CommandPause(message string, conn net.Conn, server *TCPServer) {
+
+}
+
+
+func CommandResume(message string, conn net.Conn, server *TCPServer) {
+
+}
+
 func NewTCPServer(address string, engine *Engine) (server *TCPServer) {
 	server = &TCPServer{
 		address:  address,
@@ -146,6 +155,8 @@ func NewTCPServer(address string, engine *Engine) (server *TCPServer) {
 	server.AddCommand("LIST", CommandList)
 	server.AddCommand("STATS", CommandStats)
 	server.AddCommand("HELP", CommandHelp)
+	server.AddCommand("PAUSE", CommandPause)
+	server.AddCommand("RESUME", CommandResume)
 	server.AddCommand("STOP", CommandStop)
 	return
 }
