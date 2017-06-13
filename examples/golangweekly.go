@@ -17,6 +17,21 @@ func (item Item) RecordData() []string {
 	return []string{"TEST", "DATA"}
 }
 
+type DummyExtension struct {
+}
+
+func (d *DummyExtension) ScraperStarted(scraper *gotana.Scraper) {
+	gotana.Logger().Info("STARTED !")
+}
+
+func (d *DummyExtension) ScraperStopped(scraper *gotana.Scraper) {
+	gotana.Logger().Info("STOPPED !")
+}
+
+func (d *DummyExtension) ItemScraped(scraper *gotana.Scraper, item gotana.SaveableItem) {
+	gotana.Logger().Info("SCRAPED !")
+}
+
 func GlobalHandler(proxy gotana.ScrapedItem, items chan<- gotana.SaveableItem) {
 	defer gotana.SilentRecover("HANDLER")
 
@@ -40,6 +55,7 @@ func main() {
 	engine := gotana.NewEngine().SetHandler(GlobalHandler)
 	engine.FromConfig(config)
 	engine.UseMiddleware(gotana.DelAcceptEncodingMiddleware).
-		UseMiddleware(gotana.RandomUserAgentMiddleware)
+		UseMiddleware(gotana.RandomUserAgentMiddleware).
+		UseExtension(new(DummyExtension))
 	engine.Start()
 }

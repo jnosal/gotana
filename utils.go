@@ -7,6 +7,8 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"reflect"
+	"runtime"
 	"strings"
 )
 
@@ -73,4 +75,25 @@ func StripString(s string) string {
 	}
 
 	return result
+}
+
+func DescribeFunc(f interface{}) string {
+	v := reflect.ValueOf(f)
+
+	if v.Kind() == reflect.Func {
+		if rf := runtime.FuncForPC(v.Pointer()); rf != nil {
+			return rf.Name()
+		}
+	}
+	return v.String()
+}
+
+func DescribeStruct(v interface{}) string {
+	valueOf := reflect.ValueOf(v)
+
+	if valueOf.Type().Kind() == reflect.Ptr {
+		return reflect.Indirect(valueOf).Type().Name()
+	} else {
+		return valueOf.Type().Name()
+	}
 }

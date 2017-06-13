@@ -16,6 +16,12 @@ const (
 	STATE_STOPPING = "STOPPING"
 )
 
+type Extension interface {
+	ScraperStarted(scraper *Scraper)
+	ScraperStopped(scraper *Scraper)
+	ItemScraped(scraper *Scraper, item SaveableItem)
+}
+
 type Engine struct {
 	state             string
 	wg                sync.WaitGroup

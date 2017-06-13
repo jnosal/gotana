@@ -66,12 +66,6 @@ type extensionParameters struct {
 	item    SaveableItem
 }
 
-type Extension interface {
-	ScraperStarted(scraper *Scraper)
-	ScraperStopped(scraper *Scraper)
-	ItemScraped(scraper *Scraper, item SaveableItem)
-}
-
 type Extractable interface {
 	Extract(io.ReadCloser, func(string))
 }

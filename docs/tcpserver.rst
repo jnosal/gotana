@@ -10,17 +10,21 @@ The idea behind this service is to offer simple remote control over the scrapers
 Available commands
 ==================
 
-+--------+---------------------------------------------------------------------------+
-| Name   | Description                                                               |
-+========+===========================================================================+
-| HELP   | Displays list of available commands                                       |
-+--------+---------------------------------------------------------------------------+
-| LIST   | Displays lists of available scrapers                                      |
-+--------+---------------------------------------------------------------------------+
-| STATS  | Displays statisting regarding scrapers: fetched item, requests, etc...    |
-+--------+---------------------------------------------------------------------------+
-| RESUME | Starts engine after pause (awaits scrapers cleanup)                       |
-+--------+---------------------------------------------------------------------------+
++-------------+----------------------------------------------------------------------+
+| Name        | Description                                                          |
++=============+======================================================================+
+| HELP        | Displays list of available commands                                  |
++-------------+----------------------------------------------------------------------+
+| LIST        | Displays lists of available scrapers                                 |
++-------------+----------------------------------------------------------------------+
+| STATS       | Displays statistics of currently running scrapers                    |
++-------------+----------------------------------------------------------------------+
+| MIDDLEWARE  | Display installed middleware                                         |
++-------------+----------------------------------------------------------------------+
+| EXTENSIONS  | Display installed extensions                                         |
++-------------+----------------------------------------------------------------------+
+| RESUME      | Starts engine after pause (awaits scrapers cleanup)                  |
++-------------+----------------------------------------------------------------------+
 
 
 Usage
@@ -48,3 +52,15 @@ Usage
     STOP
     --------------------
     Stopping scrapers...
+
+
+Configuration
+=============
+
+tcpaddress
+----------
+Default: ``Optional parameter``
+
+::
+
+    Host and Port combination that telnet console will bind to.

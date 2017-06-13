@@ -136,6 +136,18 @@ func CommandList(message string, conn net.Conn, server *TCPServer) {
 	writeLine(conn, fmt.Sprintf("Running scrapers: %s", strings.Join(names, ", ")))
 }
 
+func CommandExtensions(message string, conn net.Conn, server *TCPServer) {
+	for _, extension := range server.engine.extensions {
+		writeLine(conn, DescribeStruct(extension))
+	}
+}
+
+func CommandMiddleware(message string, conn net.Conn, server *TCPServer) {
+	for _, middleware := range server.engine.requestMiddleware {
+		writeLine(conn, DescribeFunc(middleware))
+	}
+}
+
 func NewTCPServer(address string, engine *Engine) (server *TCPServer) {
 	server = &TCPServer{
 		address:  address,
@@ -147,5 +159,7 @@ func NewTCPServer(address string, engine *Engine) (server *TCPServer) {
 	server.AddCommand("STATS", CommandStats)
 	server.AddCommand("HELP", CommandHelp)
 	server.AddCommand("STOP", CommandStop)
+	server.AddCommand("EXTENSIONS", CommandExtensions)
+	server.AddCommand("MIDDLEWARE", CommandMiddleware)
 	return
 }
