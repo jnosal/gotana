@@ -32,7 +32,7 @@ Usage
 
 ::
 
-    telnet localhost 6023
+    telnet localhost 7654
     HELP
     -------------------------------------
     Available commands: LIST, STATS, HELP, STOP
@@ -63,4 +63,4 @@ Default: ``Optional parameter``
 
 ::
 
-    Host and Port combination that telnet console will bind to.
+    Host and Port combination that telnet console will bind to, e.g: localhost:7654
