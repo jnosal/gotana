@@ -97,3 +97,12 @@ func DescribeStruct(v interface{}) string {
 		return valueOf.Type().Name()
 	}
 }
+
+func ContainsOneOf(s string, targets []string) bool {
+	for _, el := range targets {
+		if strings.Contains(s, el) {
+			return true
+		}
+	}
+	return false
+}

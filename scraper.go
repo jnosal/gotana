@@ -114,9 +114,10 @@ type ScraperConfig struct {
 }
 
 type ScrapedItem struct {
-	Url      string
-	Response *http.Response
-	scraper  *Scraper
+	Url       string
+	FinalUrl  string
+	scraper   *Scraper
+	BodyBytes []byte
 }
 
 func (proxy ScrapedItem) String() (result string) {
@@ -125,24 +126,24 @@ func (proxy ScrapedItem) String() (result string) {
 }
 
 func (proxy ScrapedItem) CheckIfRedirected() bool {
-	return proxy.Url != proxy.Response.Request.URL.String()
+	return proxy.Url != proxy.FinalUrl
 }
 
-func (proxy ScrapedItem) finalResponseBody() (io.ReadCloser, error) {
+func (proxy ScrapedItem) FinalResponseBody() (io.ReadCloser, error) {
 	if proxy.CheckIfRedirected() {
 		client := NewHTTPClient()
-		response, err := client.Get(proxy.Response.Request.URL.String())
+		response, err := client.Get(proxy.FinalUrl)
 		if err != nil {
 			return nil, err
 		}
-		return response.Body, nil
+		bodyBytes, _ := ioutil.ReadAll(response.Body)
+		proxy.BodyBytes = bodyBytes
 	}
-	return proxy.Response.Body, nil
+	return ioutil.NopCloser(bytes.NewBuffer(proxy.BodyBytes)), nil
 }
 
 func (proxy ScrapedItem) HTMLDocument() (document *goquery.Document, err error) {
-	responseBody, err := proxy.finalResponseBody()
-
+	responseBody, err := proxy.FinalResponseBody()
 	if err == nil {
 		document, err = goquery.NewDocumentFromReader(responseBody)
 	}
@@ -353,9 +354,10 @@ func NewScrapedItem(url string, scraper *Scraper, resp *http.Response) ScrapedIt
 	resp.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 
 	return ScrapedItem{
-		Response: resp,
-		Url:      url,
-		scraper:  scraper,
+		BodyBytes: bodyBytes,
+		FinalUrl:  resp.Request.URL.String(),
+		Url:       url,
+		scraper:   scraper,
 	}
 }
 
