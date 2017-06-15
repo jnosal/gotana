@@ -48,7 +48,7 @@ func main() {
 	engine.FromConfig(config)
 	engine.UseMiddleware(gotana.RandomUserAgentMiddleware)
 
-	//engine.GetScraper("pornhub").SetHandler(ParsePornHub)
+	engine.GetScraper("pornhub").SetHandler(ParsePornHub)
 	engine.GetScraper("spotify").SetHandler(ParseSpotify)
 
 	engine.Start()

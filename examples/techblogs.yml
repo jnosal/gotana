@@ -3,6 +3,6 @@ scrapers:
 - name: spotify
   url: https://labs.spotify.com/
   requestlimit: 500
-#- name: pornhub
-#  url: https://www.pornhub.com/insights/
-#  requestlimit: 500
+- name: pornhub
+  url: https://www.pornhub.com/insights/
+  requestlimit: 500
