@@ -75,24 +75,17 @@ type LinkExtractor struct {
 }
 
 func (extractor *LinkExtractor) Extract(r io.ReadCloser, callback func(string)) {
-	z := html.NewTokenizer(r)
+	page := html.NewTokenizer(r)
 	defer r.Close()
 
 	for {
-		tt := z.Next()
-
-		switch {
-		case tt == html.ErrorToken:
+		tokenType := page.Next()
+		if tokenType == html.ErrorToken {
 			return
-		case tt == html.StartTagToken:
-			t := z.Token()
-
-			isAnchor := t.Data == "a"
-			if !isAnchor {
-				continue
-			}
-
-			ok, url := GetHref(t)
+		}
+		token := page.Token()
+		if tokenType == html.StartTagToken && token.DataAtom.String() == "a" {
+			ok, url := GetHref(token)
 			if !ok {
 				continue
 			}
