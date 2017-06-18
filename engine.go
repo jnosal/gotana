@@ -169,7 +169,7 @@ func (engine *Engine) GetScraper(name string) *Scraper {
 			return scraper
 		}
 	}
-	return nil
+	panic("Scraper " + name + " is not defined.")
 }
 
 func (engine *Engine) PushScraper(scrapers ...*Scraper) *Engine {

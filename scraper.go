@@ -104,7 +104,8 @@ func (extractor *LinkExtractor) Extract(r io.ReadCloser, callback func(string)) 
 			if !ok {
 				continue
 			}
-			callback(trimHash(url))
+			url = trimHash(url)
+			callback(url)
 		}
 	}
 }
