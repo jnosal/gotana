@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	URL "net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -50,7 +51,7 @@ type recordWriter interface {
 
 type ScrapingHandlerFunc func(ScrapedItem, chan<- SaveableItem)
 
-func GetHref(t html.Token) (ok bool, href string) {
+func getHref(t html.Token) (ok bool, href string) {
 	for _, a := range t.Attr {
 		if a.Key == "href" {
 			href = a.Val
@@ -59,6 +60,20 @@ func GetHref(t html.Token) (ok bool, href string) {
 	}
 
 	return
+}
+
+func trimHash(s string) string {
+	if strings.Contains(s, "#") {
+		var index int
+		for i, str := range s {
+			if strconv.QuoteRune(str) == "'#'" {
+				index = i
+				break
+			}
+		}
+		return s[:index]
+	}
+	return s
 }
 
 type extensionParameters struct {
@@ -85,11 +100,11 @@ func (extractor *LinkExtractor) Extract(r io.ReadCloser, callback func(string)) 
 		}
 		token := page.Token()
 		if tokenType == html.StartTagToken && token.DataAtom.String() == "a" {
-			ok, url := GetHref(token)
+			ok, url := getHref(token)
 			if !ok {
 				continue
 			}
-			callback(url)
+			callback(trimHash(url))
 		}
 	}
 }
