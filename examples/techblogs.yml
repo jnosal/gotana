@@ -2,7 +2,10 @@ project: techblogs
 scrapers:
 - name: spotify
   url: https://labs.spotify.com/
-  requestlimit: 500
+  requestlimit: 100
 - name: pornhub
   url: https://www.pornhub.com/insights/
-  requestlimit: 500
+  requestlimit: 100
+- name: techcrunch
+  url: https://techcrunch.com/
+  requestlimit: 100
