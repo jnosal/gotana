@@ -2,6 +2,7 @@ package gotana
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"golang.org/x/net/html"
@@ -20,6 +21,7 @@ const (
 	EVENT_SCRAPER_OPENED     = "SCRAPER_OPENED"
 	EVENT_SCRAPER_CLOSED     = "SCRAPER_CLOSED"
 	EVENT_SAVEABLE_EXTRACTED = "SAVEABLE_EXTRACTED"
+	STATUS_CODE_INITIAL      = 999
 	TIMEOUT_DIALER           = time.Duration(time.Second * 30)
 	TIMEOUT_REQUEST          = time.Duration(time.Second * 30)
 	TIMEOUT_TLS              = time.Duration(time.Second * 10)
@@ -294,9 +296,13 @@ func (scraper *Scraper) Fetch(url string) (resp *http.Response, err error) {
 
 	resp, err = NewHTTPClient().Do(req)
 
-	statusCode := 0
+	statusCode := STATUS_CODE_INITIAL
 	if err == nil {
 		statusCode = resp.StatusCode
+	}
+
+	if statusCode != http.StatusOK {
+		err = errors.New(fmt.Sprintf("%d is not a valid status code", statusCode))
 	}
 
 	Logger().Debugf("[%d]Request to %s took: %s", statusCode, url, time.Since(tic))
@@ -309,8 +315,7 @@ func (scraper *Scraper) Fetch(url string) (resp *http.Response, err error) {
 		scraper.Notify(url, resp)
 		scraper.RunExtractor(resp)
 	} else {
-		Logger().Warningf("Failed to crawl %s", url)
-		Logger().Warning(err)
+		Logger().Warningf("Failed to crawl %s. %s", url, err)
 	}
 
 	if scraper.CheckIfShouldStop() {
