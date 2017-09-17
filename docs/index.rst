@@ -9,6 +9,7 @@ User's Guide
    extensions
    items
    middleware
+   patterns
    tcpserver
 
 
