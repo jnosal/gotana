@@ -14,3 +14,8 @@ Gotana
 Documentation
 =====
 http://gotana.readthedocs.org/en/latest/
+
+
+Examples
+=====
+https://github.com/jnosal/gotana/tree/master/examples
