@@ -212,6 +212,11 @@ func (engine *Engine) FromConfig(config *ScraperConfig) *Engine {
 			break
 		}
 		scraper := NewScraper(configData.Name, configData.Url, configData.RequestLimit, extractor)
+		for _, patternData := range configData.Patterns {
+			pattern := NewURLPattern(patternData.Type, patternData.Pattern)
+			scraper.PushPatterns(pattern)
+		}
+		Logger().Debugf("Defined following url patterns: %s", scraper.urlPatterns)
 		engine.PushScraper(scraper)
 	}
 

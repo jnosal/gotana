@@ -5,3 +5,8 @@ scrapers:
 - name: golang
   url: http://golangweekly.com
   requestlimit: 200
+  patterns:
+    - type: contains
+      pattern: /link
+    - type: contains
+      pattern: /web

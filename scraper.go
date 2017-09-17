@@ -121,6 +121,10 @@ type ScraperConfig struct {
 		Extractor    string
 		Name         string `required:"true"`
 		Url          string `required:"true"`
+		Patterns     []struct {
+			Type    string `required:"true"`
+			Pattern string `required:"true"`
+		}
 	}
 }
 
@@ -179,6 +183,7 @@ type Scraper struct {
 	chDone       chan struct{}
 	chRequestUrl chan string
 	requestLimit int
+	urlPatterns  []URLPattern
 }
 
 func (scraper *Scraper) MarkAsFetched(url string) {
@@ -322,6 +327,11 @@ func (scraper *Scraper) Fetch(url string) (resp *http.Response, err error) {
 		scraper.Stop()
 	}
 	return
+}
+
+func (scraper *Scraper) PushPatterns(urlPatterns ...URLPattern) *Scraper {
+	scraper.urlPatterns = append(scraper.urlPatterns, urlPatterns...)
+	return scraper
 }
 
 func (scraper *Scraper) SetHandler(handler ScrapingHandlerFunc) *Scraper {
