@@ -2,7 +2,6 @@ package main
 
 import (
 	"gotana"
-	"strings"
 )
 
 type Item struct {
@@ -35,7 +34,7 @@ func (d *DummyExtension) ItemScraped(scraper *gotana.Scraper, item gotana.Saveab
 func GlobalHandler(proxy gotana.ScrapedItem, items chan<- gotana.SaveableItem) {
 	defer gotana.SilentRecover("HANDLER")
 
-	if strings.Contains(proxy.Url, "/link") && strings.Contains(proxy.Url, "/web") {
+	if proxy.CheckURLPatterns() {
 		gotana.Logger().Debug(proxy)
 		document, err := proxy.HTMLDocument()
 		if err != nil {

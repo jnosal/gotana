@@ -166,6 +166,23 @@ func (proxy ScrapedItem) HTMLDocument() (document *goquery.Document, err error) 
 	return
 }
 
+func (proxy ScrapedItem) CheckURLPatterns() (result bool) {
+	patterns := proxy.scraper.urlPatterns
+	if len(patterns) == 0 {
+		return true
+	}
+
+	result = false
+	for _, pattern := range patterns {
+		if pattern.Validate(proxy.Url) {
+			result = true
+			break
+		}
+	}
+
+	return
+}
+
 type Scraper struct {
 	crawled      int
 	successful   int

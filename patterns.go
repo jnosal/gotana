@@ -1,6 +1,11 @@
 package gotana
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
+
+const TYPE_CONTAINS = "contains"
 
 type URLPattern struct {
 	Type    string `required:"true"`
@@ -9,6 +14,16 @@ type URLPattern struct {
 
 func (item URLPattern) String() (result string) {
 	result = fmt.Sprintf("URL Pattern [%s]: %s", item.Type, item.Pattern)
+	return
+}
+
+func (item *URLPattern) Validate(url string) (result bool) {
+	switch {
+	case item.Type == TYPE_CONTAINS:
+		result = strings.Contains(url, item.Pattern)
+	default:
+		result = false
+	}
 	return
 }
 
