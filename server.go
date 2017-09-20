@@ -148,6 +148,10 @@ func CommandMiddleware(message string, conn net.Conn, server *TCPServer) {
 	}
 }
 
+func CommandItems(message string, conn net.Conn, server *TCPServer) {
+
+}
+
 func NewTCPServer(address string, engine *Engine) (server *TCPServer) {
 	server = &TCPServer{
 		address:  address,
@@ -161,5 +165,7 @@ func NewTCPServer(address string, engine *Engine) (server *TCPServer) {
 	server.AddCommand("STOP", CommandStop)
 	server.AddCommand("EXTENSIONS", CommandExtensions)
 	server.AddCommand("MIDDLEWARE", CommandMiddleware)
+	server.AddCommand("ITEMS", CommandItems)
+
 	return
 }
