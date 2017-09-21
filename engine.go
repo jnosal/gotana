@@ -80,6 +80,9 @@ func (engine *Engine) scrapingLoop() {
 
 	f, writer := GetWriter(engine)
 
+	if writer != nil {
+		Logger().Infof("Using writer: %s.", engine.Config.WriterType)
+	}
 	if f != nil {
 		defer f.Close()
 	}
@@ -230,13 +233,14 @@ func GetWriter(engine *Engine) (*os.File, recordWriter) {
 		if err == nil && f != nil {
 			switch {
 			case strings.HasSuffix(engine.Config.OutFileName, ".csv"):
-				Logger().Infof("Using Config writer.")
 				return f, csv.NewWriter(f)
 			default:
 				Logger().Warningf("Cannot write to: %s. Unsupported extension.", engine.Config.OutFileName)
 				break
 			}
 		}
+	case WRITER_REDIS:
+		return nil, NewRedisWriter(engine.Config.RedisAddress)
 	default:
 		break
 	}

@@ -1,7 +1,8 @@
 project: test
 tcpaddress: localhost:7654
 outfilename: data.csv
-writertype: file
+redisaddress: localhost:6379
+writertype: redis
 scrapers:
 - name: golang
   url: http://golangweekly.com
