@@ -226,7 +226,8 @@ func (engine *Engine) FromConfig(config *ScraperConfig) *Engine {
 func GetWriter(engine *Engine) (*os.File, recordWriter) {
 	switch engine.Config.WriterType {
 	case WRITER_FILE:
-		if f, err := os.OpenFile(engine.Config.OutFileName, OPEN_FILE_FLAGS, OPEN_FILE_MODE); err == nil && f != nil {
+		f, err := os.OpenFile(engine.Config.OutFileName, OPEN_FILE_FLAGS, OPEN_FILE_MODE)
+		if err == nil && f != nil {
 			switch {
 			case strings.HasSuffix(engine.Config.OutFileName, ".csv"):
 				Logger().Infof("Using Config writer.")
