@@ -11,9 +11,11 @@ import (
 )
 
 const (
-	STATE_INITIAL  = "INTITIAL"
-	STATE_RUNNING  = "RUNNING"
-	STATE_STOPPING = "STOPPING"
+	STATE_INITIAL   = "INTITIAL"
+	STATE_RUNNING   = "RUNNING"
+	STATE_STOPPING  = "STOPPING"
+	OPEN_FILE_FLAGS = os.O_CREATE | os.O_WRONLY | os.O_TRUNC
+	OPEN_FILE_MODE  = 0666
 )
 
 type Extension interface {
@@ -35,9 +37,8 @@ type Engine struct {
 	chDone            chan struct{}
 	chScraped         chan ScrapedItem
 	chItems           chan SaveableItem
-	TcpAddress        string
-	OutFileName       string
 	Meta              *EngineMeta
+	Config            *ScraperConfig
 }
 
 func (engine *Engine) notifyExtensions(event string, prm extensionParameters) {
@@ -111,8 +112,8 @@ func (engine *Engine) scrapingLoop() {
 }
 
 func (engine *Engine) startTCPServer() {
-	if engine.TcpAddress != "" {
-		server := NewTCPServer(engine.TcpAddress, engine)
+	if engine.Config.TcpAddress != "" {
+		server := NewTCPServer(engine.Config.TcpAddress, engine)
 		server.Start()
 	}
 }
@@ -200,8 +201,7 @@ func (engine *Engine) PrepareRequest(request *http.Request) *http.Request {
 }
 
 func (engine *Engine) FromConfig(config *ScraperConfig) *Engine {
-	engine.TcpAddress = config.TcpAddress
-	engine.OutFileName = config.OutFileName
+	engine.Config = config
 
 	for _, configData := range config.Scrapers {
 		extractor := defaultExtractor()
@@ -224,16 +224,20 @@ func (engine *Engine) FromConfig(config *ScraperConfig) *Engine {
 }
 
 func GetWriter(engine *Engine) (*os.File, recordWriter) {
-	if f, err := os.OpenFile(engine.OutFileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666); err == nil && f != nil {
-		switch {
-		case strings.HasSuffix(engine.OutFileName, ".csv"):
-			Logger().Infof("Using CSV writer.")
-			return f, csv.NewWriter(f)
-		default:
-			Logger().Warningf("Cannot write to: %s. Unsupported extension.", engine.OutFileName)
-			return nil, nil
+	switch engine.Config.WriterType {
+	case WRITER_FILE:
+		if f, err := os.OpenFile(engine.Config.OutFileName, OPEN_FILE_FLAGS, OPEN_FILE_MODE); err == nil && f != nil {
+			switch {
+			case strings.HasSuffix(engine.Config.OutFileName, ".csv"):
+				Logger().Infof("Using Config writer.")
+				return f, csv.NewWriter(f)
+			default:
+				Logger().Warningf("Cannot write to: %s. Unsupported extension.", engine.Config.OutFileName)
+				break
+			}
 		}
-
+	default:
+		break
 	}
 	return nil, nil
 }

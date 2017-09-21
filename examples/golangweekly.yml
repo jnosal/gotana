@@ -1,6 +1,7 @@
 project: test
 tcpaddress: localhost:7654
 outfilename: data.csv
+writertype: file
 scrapers:
 - name: golang
   url: http://golangweekly.com

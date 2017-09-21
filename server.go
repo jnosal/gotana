@@ -159,6 +159,7 @@ func NewTCPServer(address string, engine *Engine) (server *TCPServer) {
 		messages: make(chan TCPMessage),
 		commands: make(map[string]interface{}),
 	}
+
 	server.AddCommand("LIST", CommandList)
 	server.AddCommand("STATS", CommandStats)
 	server.AddCommand("HELP", CommandHelp)

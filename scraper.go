@@ -25,6 +25,8 @@ const (
 	TIMEOUT_DIALER           = time.Duration(time.Second * 30)
 	TIMEOUT_REQUEST          = time.Duration(time.Second * 30)
 	TIMEOUT_TLS              = time.Duration(time.Second * 10)
+	WRITER_REDIS             = "redis"
+	WRITER_FILE              = "file"
 )
 
 type SaveableItem interface {
@@ -44,11 +46,6 @@ func (s *ScraperMixin) SetProxy(proxy ScrapedItem) *ScraperMixin {
 
 func (item ScraperMixin) Scraper() *Scraper {
 	return item.Proxy.scraper
-}
-
-type recordWriter interface {
-	Write(record []string) error
-	Flush()
 }
 
 type ScrapingHandlerFunc func(ScrapedItem, chan<- SaveableItem)
@@ -113,10 +110,12 @@ func (extractor *LinkExtractor) Extract(r io.ReadCloser, callback func(string)) 
 }
 
 type ScraperConfig struct {
-	Project     string `required:"true"`
-	TcpAddress  string
-	OutFileName string
-	Scrapers    []struct {
+	Project      string `required:"true"`
+	TcpAddress   string
+	WriterType   string
+	OutFileName  string
+	RedisAddress string
+	Scrapers     []struct {
 		RequestLimit int `required:"true"`
 		Extractor    string
 		Name         string `required:"true"`
@@ -423,22 +422,14 @@ func defaultRequestLimit() time.Duration {
 	return time.Duration(1)
 }
 
-func SaveItem(item SaveableItem, writer recordWriter) {
-	if writer == nil {
-		return
-	}
-
-	if !item.Validate() {
-		Logger().Warning("Item is not valid. Skipping...")
-		return
-	}
-
-	defer writer.Flush()
-	writer.Write(item.RecordData())
-}
-
 func NewSpiderConfig(file string) (config *ScraperConfig) {
 	config = &ScraperConfig{}
 	ProcessFile(config, file)
+	if config.WriterType == WRITER_REDIS && config.RedisAddress == "" {
+		panic("Writer is set to redis but redis address is not specified")
+	}
+	if config.WriterType == WRITER_FILE && config.OutFileName == "" {
+		panic("Writer is set to file but outfile path is not specified")
+	}
 	return
 }
