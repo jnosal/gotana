@@ -255,8 +255,8 @@ func NewEngine() (r *Engine) {
 		limitFail:  500,
 		finished:   0,
 		chDone:     make(chan struct{}),
-		chScraped:  make(chan ScrapedItem),
-		chItems:    make(chan SaveableItem, 10),
+		chScraped:  make(chan ScrapedItem, 100),
+		chItems:    make(chan SaveableItem, 250),
 	}
 	return
 }

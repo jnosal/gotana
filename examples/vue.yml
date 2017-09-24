@@ -1,0 +1,10 @@
+project: test
+outfilename: vue.csv
+writertype: file
+scrapers:
+- name: vue
+  url: https://www.getrevue.co/profile/vuenewsletter
+  requestlimit: 1000
+  patterns:
+    - type: contains
+      pattern: /issues

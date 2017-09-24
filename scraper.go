@@ -191,6 +191,7 @@ type Scraper struct {
 	crawledMutex *sync.Mutex
 	Name         string
 	Domain       string
+	Scheme       string
 	BaseUrl      string
 	CurrentUrl   string
 	fetchedUrls  map[string]bool
@@ -241,7 +242,7 @@ func (scraper *Scraper) CheckUrl(sourceUrl string) (ok bool, url string) {
 		url = sourceUrl
 		ok = true
 	} else if strings.Index(sourceUrl, "/") == 0 {
-		url = scraper.BaseUrl + sourceUrl
+		url = fmt.Sprintf("%s://%s%s", scraper.Scheme, scraper.Domain, sourceUrl)
 		ok = true
 	}
 	return
@@ -333,6 +334,7 @@ func (scraper *Scraper) Fetch(url string) (resp *http.Response, err error) {
 	scraper.engine.Meta.UpdateRequestStats(scraper, isSuccessful, req, resp)
 
 	if err == nil {
+		Logger().Debugf("Succesfully crawled %s.", url)
 		scraper.Notify(url, resp)
 		scraper.RunExtractor(resp)
 	} else {
@@ -376,6 +378,7 @@ func NewScraper(name string, sourceUrl string, requestLimit int, extractor Extra
 
 	s = &Scraper{
 		Name:         name,
+		Scheme:       parsed.Scheme,
 		Domain:       parsed.Host,
 		BaseUrl:      sourceUrl,
 		fetchedUrls:  make(map[string]bool),
