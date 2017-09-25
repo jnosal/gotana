@@ -1,6 +1,7 @@
 package gotana
 
 import (
+	"bufio"
 	"fmt"
 	"net"
 	"strings"
@@ -9,7 +10,6 @@ import (
 )
 
 const (
-	BUFFER_SIZE                      = 4096
 	TCP_CONNECTION_READLINE_DEADLINE = 30
 )
 
@@ -29,9 +29,12 @@ type TCPServer struct {
 }
 
 func writeLine(conn net.Conn, message string) {
-	conn.Write([]byte(strings.Repeat("-", utf8.RuneCountInString(message)) + "\n"))
-	conn.Write([]byte(message + "\n"))
-	conn.Write([]byte(strings.Repeat("-", utf8.RuneCountInString(message)) + "\n"))
+	writer := bufio.NewWriter(conn)
+	defer writer.Flush()
+
+	writer.WriteString(strings.Repeat("-", utf8.RuneCountInString(message)) + "\n")
+	writer.WriteString(message + "\n")
+	writer.WriteString(strings.Repeat("-", utf8.RuneCountInString(message)) + "\n")
 }
 
 func increaseDeadline(conn net.Conn) {
@@ -60,14 +63,18 @@ func (server *TCPServer) handleConnection(conn net.Conn) {
 	writeLine(conn, "Connection established. Enter a command")
 
 	increaseDeadline(conn)
-	buf := make([]byte, BUFFER_SIZE)
+	reader := bufio.NewReader(conn)
+	scanner := bufio.NewScanner(reader)
 
 	for {
-		n, err := conn.Read(buf)
-		if err != nil || n == 0 {
+		scanned := scanner.Scan()
+		if !scanned {
+			if err := scanner.Err(); err != nil {
+				Logger().Errorf("%v(%v)", err, conn.RemoteAddr())
+			}
 			break
 		}
-		server.messages <- TCPMessage{string(buf[0:n]), conn}
+		server.messages <- TCPMessage{scanner.Text(), conn}
 		increaseDeadline(conn)
 	}
 
@@ -101,8 +108,8 @@ func (server *TCPServer) Start() {
 }
 
 func (server *TCPServer) Stop() {
-    Logger().Infof("Shutting down TCP server")
-    server.listener.Close()
+	Logger().Infof("Shutting down TCP server")
+	server.listener.Close()
 }
 
 func (server *TCPServer) AddCommand(name string, handler TCPCommand) {
