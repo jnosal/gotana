@@ -25,6 +25,7 @@ type TCPServer struct {
 	address  string
 	messages chan TCPMessage
 	commands map[string]interface{}
+	listener net.Listener
 }
 
 func writeLine(conn net.Conn, message string) {
@@ -75,7 +76,9 @@ func (server *TCPServer) handleConnection(conn net.Conn) {
 
 func (server *TCPServer) Start() {
 	listener, err := net.Listen("tcp", server.address)
+	server.listener = listener
 
+	defer listener.Close()
 	if err != nil {
 		Logger().Errorf("Cannot start TCP server at: %s", server.address)
 		return
@@ -95,6 +98,11 @@ func (server *TCPServer) Start() {
 
 		go server.handleConnection(conn)
 	}
+}
+
+func (server *TCPServer) Stop() {
+    Logger().Infof("Shutting down TCP server")
+    server.listener.Close()
 }
 
 func (server *TCPServer) AddCommand(name string, handler TCPCommand) {

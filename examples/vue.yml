@@ -1,6 +1,5 @@
 project: test
-outfilename: vue.csv
-writertype: file
+tcpaddress: localhost:7654
 scrapers:
 - name: vue
   url: https://www.getrevue.co/profile/vuenewsletter
