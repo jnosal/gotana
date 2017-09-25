@@ -152,12 +152,22 @@ func CommandList(message string, conn net.Conn, server *TCPServer) {
 }
 
 func CommandExtensions(message string, conn net.Conn, server *TCPServer) {
+	if len(server.engine.extensions) == 0 {
+		writeLine(conn, "No extensions installed")
+		return
+	}
+
 	for _, extension := range server.engine.extensions {
 		writeLine(conn, DescribeStruct(extension))
 	}
 }
 
 func CommandMiddleware(message string, conn net.Conn, server *TCPServer) {
+	if len(server.engine.requestMiddleware) == 0 {
+		writeLine(conn, "No middleware installed")
+		return
+	}
+
 	for _, middleware := range server.engine.requestMiddleware {
 		writeLine(conn, DescribeFunc(middleware))
 	}
