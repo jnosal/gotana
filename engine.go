@@ -1,21 +1,17 @@
 package gotana
 
 import (
-	"encoding/csv"
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"sync"
 	"syscall"
 )
 
 const (
-	STATE_INITIAL   = "INTITIAL"
-	STATE_RUNNING   = "RUNNING"
-	STATE_STOPPING  = "STOPPING"
-	OPEN_FILE_FLAGS = os.O_CREATE | os.O_WRONLY | os.O_TRUNC
-	OPEN_FILE_MODE  = 0666
+	STATE_INITIAL  = "INTITIAL"
+	STATE_RUNNING  = "RUNNING"
+	STATE_STOPPING = "STOPPING"
 )
 
 type Extension interface {
@@ -78,13 +74,10 @@ func (engine Engine) Done() bool {
 func (engine *Engine) scrapingLoop() {
 	Logger().Info("Starting scraping loop")
 
-	f, writer := GetWriter(engine)
+	writer := GetWriter(engine)
 
 	if writer != nil {
-		Logger().Infof("Using writer: %s.", engine.Config.WriterType)
-	}
-	if f != nil {
-		defer f.Close()
+		Logger().Infof("Redis dao is enabled")
 	}
 
 	for {
@@ -226,25 +219,11 @@ func (engine *Engine) FromConfig(config *ScraperConfig) *Engine {
 	return engine
 }
 
-func GetWriter(engine *Engine) (*os.File, recordWriter) {
-	switch engine.Config.WriterType {
-	case WRITER_FILE:
-		f, err := os.OpenFile(engine.Config.OutFileName, OPEN_FILE_FLAGS, OPEN_FILE_MODE)
-		if err == nil && f != nil {
-			switch {
-			case strings.HasSuffix(engine.Config.OutFileName, ".csv"):
-				return f, csv.NewWriter(f)
-			default:
-				Logger().Warningf("Cannot write to: %s. Unsupported extension.", engine.Config.OutFileName)
-				break
-			}
-		}
-	case WRITER_REDIS:
-		return nil, NewRedisWriter(engine.Config.RedisAddress)
-	default:
-		break
+func GetWriter(engine *Engine) DAO {
+	if engine.Config.RedisAddress != "" {
+		return NewRedisDao(engine.Config.RedisAddress)
 	}
-	return nil, nil
+	return nil
 }
 
 func NewEngine() (r *Engine) {

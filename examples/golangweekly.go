@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"gotana"
 )
 
@@ -12,8 +13,8 @@ func (item Item) Validate() bool {
 	return true
 }
 
-func (item Item) RecordData() []string {
-	return []string{"TEST", "DATA"}
+func (item Item) RecordData() ([]byte, error) {
+	return json.Marshal(item)
 }
 
 type DummyExtension struct {
