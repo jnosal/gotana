@@ -14,12 +14,6 @@ const (
 	STATE_STOPPING = "STOPPING"
 )
 
-type Extension interface {
-	ScraperStarted(scraper *Scraper)
-	ScraperStopped(scraper *Scraper)
-	ItemScraped(scraper *Scraper, item SaveableItem)
-}
-
 type Engine struct {
 	state             string
 	wg                sync.WaitGroup
@@ -74,12 +68,6 @@ func (engine Engine) Done() bool {
 func (engine *Engine) scrapingLoop() {
 	Logger().Info("Starting scraping loop")
 
-	writer := GetWriter(engine)
-
-	if writer != nil {
-		Logger().Infof("Redis dao is enabled")
-	}
-
 	for {
 		select {
 		case proxy, ok := <-engine.chScraped:
@@ -102,7 +90,6 @@ func (engine *Engine) scrapingLoop() {
 				extensionParameters{scraper: scraper, item: item})
 
 			scraper.engine.Meta.IncrSaved(scraper)
-			SaveItem(item, writer)
 		}
 	}
 }

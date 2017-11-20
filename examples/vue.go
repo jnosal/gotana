@@ -45,6 +45,7 @@ func main() {
 	engine := gotana.NewEngine().SetHandler(IssueHandler)
 	engine.FromConfig(config)
 	engine.UseMiddleware(gotana.DelAcceptEncodingMiddleware).
-		UseMiddleware(gotana.RandomUserAgentMiddleware)
+		UseMiddleware(gotana.RandomUserAgentMiddleware).
+		UseExtension(new(gotana.SaveInRedisExtension))
 	engine.Start()
 }
