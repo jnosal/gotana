@@ -109,6 +109,7 @@ func (extractor *LinkExtractor) Extract(r io.ReadCloser, callback func(string)) 
 
 type ScraperConfig struct {
 	Project      string `required:"true"`
+	HttpAddress  string
 	TcpAddress   string
 	RedisAddress string
 	Scrapers     []struct {

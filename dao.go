@@ -1,13 +1,17 @@
 package gotana
 
 import (
+	"encoding/json"
 	"github.com/go-redis/redis"
 )
 
+type genericStruct map[string]interface{}
+
 type DAO interface {
-	Write(scraperName string, data []byte) error
-	GetLatest(scraperName string) error
-	GetAll(scraperName string) error
+	Write(scraper string, data []byte) error
+	GetLatestItem(scraper string) error
+	GetItems(scraper string, start int64, stop int64) []string
+	ProcessItems(items []string) []genericStruct
 }
 
 func SaveItem(item SaveableItem, dao DAO) {
@@ -20,9 +24,9 @@ func SaveItem(item SaveableItem, dao DAO) {
 		return
 	}
 
-	scraperName := item.Scraper().Name
+	scraper := item.Scraper().Name
 	if data, err := item.RecordData(); err == nil {
-		dao.Write(scraperName, data)
+		dao.Write(scraper, data)
 	}
 }
 
@@ -34,19 +38,32 @@ func (r RedisDAO) KeyPrefixed(key string) string {
 	return "gotana-" + key
 }
 
-func (r RedisDAO) Write(scraperName string, data []byte) error {
+func (r RedisDAO) Write(scraper string, data []byte) error {
 	stringData := string(data[:])
-	key := r.KeyPrefixed(scraperName)
+	key := r.KeyPrefixed(scraper)
 	r.client.LPush(key, stringData)
 	return nil
 }
 
-func (r RedisDAO) GetLatest(scraperName string) error {
+func (r RedisDAO) GetLatestItem(scraper string) error {
 	return nil
 }
 
-func (r RedisDAO) GetAll(scraperName string) error {
-	return nil
+func (r RedisDAO) GetItems(scraper string, start int64, stop int64) []string {
+	key := r.KeyPrefixed(scraper)
+	return r.client.LRange(key, start, stop).Val()
+}
+
+func (r RedisDAO) ProcessItems(items []string) []genericStruct {
+	result := make([]genericStruct, len(items))
+
+	for index, item := range items {
+		var data = genericStruct{}
+		json.Unmarshal([]byte(item), &data)
+		result[index] = data
+	}
+
+	return result
 }
 
 func (r RedisDAO) String() string {

@@ -101,6 +101,13 @@ func (engine *Engine) startTCPServer() {
 	}
 }
 
+func (engine *Engine) startHTTPServer() {
+	if engine.Config.HttpAddress != "" {
+		server := NewHTTPServer(engine.Config.HttpAddress, engine)
+		server.Start()
+	}
+}
+
 func (engine *Engine) Start() {
 	defer engine.Cleanup()
 
@@ -114,6 +121,7 @@ func (engine *Engine) Start() {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	go engine.startTCPServer()
+	go engine.startHTTPServer()
 	go engine.scrapingLoop()
 
 	select {
@@ -206,7 +214,7 @@ func (engine *Engine) FromConfig(config *ScraperConfig) *Engine {
 	return engine
 }
 
-func GetWriter(engine *Engine) DAO {
+func GetDAO(engine *Engine) DAO {
 	if engine.Config.RedisAddress != "" {
 		return NewRedisDao(engine.Config.RedisAddress)
 	}

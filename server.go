@@ -3,7 +3,10 @@ package gotana
 import (
 	"bufio"
 	"fmt"
+	fury "github.com/jnosal/gofury"
 	"net"
+	"net/http"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -93,7 +96,7 @@ func (server *TCPServer) Start() {
 
 	go server.handleMessages()
 
-	Logger().Infof("Started TCP server at: %s", server.address)
+	Logger().Infof("STARTING TCP server at %s", server.address)
 
 	for {
 		conn, err := listener.Accept()
@@ -193,5 +196,38 @@ func NewTCPServer(address string, engine *Engine) (server *TCPServer) {
 	server.AddCommand("MIDDLEWARE", CommandMiddleware)
 	server.AddCommand("ITEMS", CommandItems)
 
+	return
+}
+
+type HealthCheckResource struct {
+	engine *Engine
+}
+
+func (resource HealthCheckResource) Get(meta *fury.Meta) {
+	data := map[string]bool{"status": true}
+	meta.Json(http.StatusOK, data)
+}
+
+type ListBySpiderResource struct {
+	engine *Engine
+}
+
+func (resource ListBySpiderResource) Get(meta *fury.Meta) {
+	name := meta.Request().URL.Query().Get("scraper")
+	scraper := resource.engine.GetScraper(name)
+	dao := GetDAO(resource.engine)
+	items := dao.GetItems(scraper.Name, 1, 100)
+	result := dao.ProcessItems(items)
+	meta.Json(http.StatusOK, result)
+}
+
+func NewHTTPServer(address string, engine *Engine) (server *fury.Fury) {
+	chunks := strings.Split(address, ":")
+	host := chunks[0]
+	port, _ := strconv.Atoi(chunks[1])
+	server = fury.New(host, port)
+
+	server.Route("/api/healthcheck", &HealthCheckResource{engine})
+	server.Route("/api/items", &ListBySpiderResource{engine})
 	return
 }

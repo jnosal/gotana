@@ -18,7 +18,7 @@ func (d *SaveInRedisExtension) ScraperStopped(scraper *Scraper) {
 }
 
 func (d *SaveInRedisExtension) ItemScraped(scraper *Scraper, item SaveableItem) {
-	if writer := GetWriter(scraper.engine); writer != nil {
-		SaveItem(item, writer)
+	if dao := GetDAO(scraper.engine); dao != nil {
+		SaveItem(item, dao)
 	}
 }
