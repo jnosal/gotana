@@ -213,7 +213,7 @@ type ListBySpiderResource struct {
 }
 
 func (resource ListBySpiderResource) Get(meta *fury.Meta) {
-	name := meta.Request().URL.Query().Get("scraper")
+	name := meta.Query().Get("scraper")
 	scraper := resource.engine.GetScraper(name)
 	dao := GetDAO(resource.engine)
 	items := dao.GetItems(scraper.Name, 1, 100)
