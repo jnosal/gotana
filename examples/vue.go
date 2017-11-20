@@ -1,8 +1,9 @@
 package main
 
 import (
-	"gotana"
+	"encoding/json"
 	"github.com/PuerkitoBio/goquery"
+	"gotana"
 )
 
 type Issue struct {
@@ -15,10 +16,9 @@ func (item Issue) Validate() bool {
 	return true
 }
 
-func (item Issue) RecordData() []string {
-	return []string{item.Title, item.Href}
+func (item Issue) RecordData() ([]byte, error) {
+	return json.Marshal(item)
 }
-
 
 func IssueHandler(proxy gotana.ScrapedItem, items chan<- gotana.SaveableItem) {
 	defer gotana.SilentRecover("HANDLER")
@@ -32,7 +32,7 @@ func IssueHandler(proxy gotana.ScrapedItem, items chan<- gotana.SaveableItem) {
 		document.Find(".item-link-title a").Each(func(i int, s *goquery.Selection) {
 			issue := Issue{
 				Title: s.Text(),
-				Href: s.AttrOr("href", ""),
+				Href:  s.AttrOr("href", ""),
 			}
 			issue.Proxy = proxy
 			items <- issue

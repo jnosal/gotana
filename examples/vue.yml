@@ -1,5 +1,6 @@
 project: test
 tcpaddress: localhost:7654
+redisaddress: localhost:6379
 scrapers:
 - name: vue
   url: https://www.getrevue.co/profile/vuenewsletter

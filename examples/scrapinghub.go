@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"github.com/PuerkitoBio/goquery"
 	"gotana"
 )
@@ -14,8 +15,8 @@ func (item AItem) Validate() bool {
 	return true
 }
 
-func (item AItem) RecordData() []string {
-	return []string{item.Title}
+func (item AItem) RecordData() ([]byte, error) {
+	return json.Marshal(item)
 }
 
 func ParseScrapingHub(proxy gotana.ScrapedItem, items chan<- gotana.SaveableItem) {

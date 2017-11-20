@@ -6,6 +6,8 @@ import (
 
 type DAO interface {
 	Write(scraperName string, data []byte) error
+	GetLatest(scraperName string) error
+	GetAll(scraperName string) error
 }
 
 func SaveItem(item SaveableItem, dao DAO) {
@@ -34,12 +36,21 @@ func (r RedisDAO) KeyPrefixed(key string) string {
 
 func (r RedisDAO) Write(scraperName string, data []byte) error {
 	stringData := string(data[:])
-	r.client.LPush(r.KeyPrefixed(scraperName), stringData)
+	key := r.KeyPrefixed(scraperName)
+	r.client.LPush(key, stringData)
+	return nil
+}
+
+func (r RedisDAO) GetLatest(scraperName string) error {
+	return nil
+}
+
+func (r RedisDAO) GetAll(scraperName string) error {
 	return nil
 }
 
 func (r RedisDAO) String() string {
-	return "RedisWriter"
+	return "RedisDAO"
 }
 
 func NewRedisDao(address string) (dao RedisDAO) {

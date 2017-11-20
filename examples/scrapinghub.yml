@@ -1,6 +1,5 @@
 project: test
 tcpaddress: localhost:7654
-outfilename: data.csv
 scrapers:
 - name: scrapinghub
   url: https://blog.scrapinghub.com
