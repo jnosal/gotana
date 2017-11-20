@@ -8,9 +8,10 @@ import (
 type genericStruct map[string]interface{}
 
 type DAO interface {
-	Write(scraper string, data []byte) error
-	GetLatestItem(scraper string) error
-	GetItems(scraper string, start int64, stop int64) []string
+	Write(name string, data []byte) error
+	GetLatestItem(name string) error
+	GetItems(name string) []string
+	CountItems(name string) int64
 	ProcessItems(items []string) []genericStruct
 }
 
@@ -38,20 +39,25 @@ func (r RedisDAO) KeyPrefixed(key string) string {
 	return "gotana-" + key
 }
 
-func (r RedisDAO) Write(scraper string, data []byte) error {
+func (r RedisDAO) Write(name string, data []byte) error {
 	stringData := string(data[:])
-	key := r.KeyPrefixed(scraper)
-	r.client.LPush(key, stringData)
+	key := r.KeyPrefixed(name)
+	r.client.SAdd(key, stringData)
 	return nil
 }
 
-func (r RedisDAO) GetLatestItem(scraper string) error {
+func (r RedisDAO) GetLatestItem(name string) error {
 	return nil
 }
 
-func (r RedisDAO) GetItems(scraper string, start int64, stop int64) []string {
-	key := r.KeyPrefixed(scraper)
-	return r.client.LRange(key, start, stop).Val()
+func (r RedisDAO) GetItems(name string) []string {
+	key := r.KeyPrefixed(name)
+	return r.client.SMembers(key).Val()
+}
+
+func (r RedisDAO) CountItems(name string) int64 {
+	key := r.KeyPrefixed(name)
+	return r.client.SCard(key).Val()
 }
 
 func (r RedisDAO) ProcessItems(items []string) []genericStruct {

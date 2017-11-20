@@ -155,13 +155,22 @@ func (engine *Engine) Cleanup() {
 	close(engine.chItems)
 }
 
+func (engine *Engine) HasScraper(name string) bool {
+	for _, scraper := range engine.scrapers {
+		if scraper.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
 func (engine *Engine) GetScraper(name string) *Scraper {
 	for _, scraper := range engine.scrapers {
 		if scraper.Name == name {
 			return scraper
 		}
 	}
-	panic("Scraper " + name + " is not defined.")
+	return nil
 }
 
 func (engine *Engine) PushScraper(scrapers ...*Scraper) *Engine {

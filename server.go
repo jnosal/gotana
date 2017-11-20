@@ -204,20 +204,31 @@ type HealthCheckResource struct {
 }
 
 func (resource HealthCheckResource) Get(meta *fury.Meta) {
-	data := map[string]bool{"status": true}
-	meta.Json(http.StatusOK, data)
+	result := map[string]string{"status": "OK"}
+	meta.Json(http.StatusOK, result)
 }
 
-type ListBySpiderResource struct {
+type ListByScraperResource struct {
 	engine *Engine
 }
 
-func (resource ListBySpiderResource) Get(meta *fury.Meta) {
+func (resource ListByScraperResource) Get(meta *fury.Meta) {
+	result := map[string]interface{}{}
 	name := meta.Query().Get("scraper")
 	scraper := resource.engine.GetScraper(name)
+
+	if scraper == nil {
+		result["error"] = "Scraper is not defined."
+		meta.Json(http.StatusBadRequest, result)
+		return
+	}
+
 	dao := GetDAO(resource.engine)
-	items := dao.GetItems(scraper.Name, 1, 100)
-	result := dao.ProcessItems(items)
+	items := dao.GetItems(scraper.Name)
+
+	result["items"] = dao.ProcessItems(items)
+	result["count"] = dao.CountItems(scraper.Name)
+
 	meta.Json(http.StatusOK, result)
 }
 
@@ -228,6 +239,6 @@ func NewHTTPServer(address string, engine *Engine) (server *fury.Fury) {
 	server = fury.New(host, port)
 
 	server.Route("/api/healthcheck", &HealthCheckResource{engine})
-	server.Route("/api/items", &ListBySpiderResource{engine})
+	server.Route("/api/items", &ListByScraperResource{engine})
 	return
 }
