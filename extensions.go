@@ -20,5 +20,6 @@ func (d *SaveInRedisExtension) ScraperStopped(scraper *Scraper) {
 func (d *SaveInRedisExtension) ItemScraped(scraper *Scraper, item SaveableItem) {
 	if dao := GetDAO(scraper.engine); dao != nil {
 		SaveItem(item, dao)
+		scraper.engine.Meta.IncrSaved(scraper)
 	}
 }

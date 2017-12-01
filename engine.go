@@ -88,8 +88,6 @@ func (engine *Engine) scrapingLoop() {
 			scraper := item.Scraper()
 			engine.notifyExtensions(EVENT_SAVEABLE_EXTRACTED,
 				extensionParameters{scraper: scraper, item: item})
-
-			scraper.engine.Meta.IncrSaved(scraper)
 		}
 	}
 }

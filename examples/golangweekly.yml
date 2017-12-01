@@ -1,6 +1,7 @@
 project: test
 tcpaddress: localhost:7654
 redisaddress: localhost:6379
+httpaddress: localhost:5555
 scrapers:
 - name: golang
   url: http://golangweekly.com
