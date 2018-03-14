@@ -60,13 +60,17 @@ func (r RedisDAO) CountItems(name string) int64 {
 	return r.client.SCard(key).Val()
 }
 
+func (r RedisDAO) ProcessItem(item string) genericStruct {
+	var data = genericStruct{}
+	json.Unmarshal([]byte(item), &data)
+	return data
+}
+
 func (r RedisDAO) ProcessItems(items []string) []genericStruct {
 	result := make([]genericStruct, len(items))
 
 	for index, item := range items {
-		var data = genericStruct{}
-		json.Unmarshal([]byte(item), &data)
-		result[index] = data
+		result[index] = r.ProcessItem(item)
 	}
 
 	return result
