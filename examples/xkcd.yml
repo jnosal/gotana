@@ -1,0 +1,5 @@
+project: test
+scrapers:
+- name: xkcd
+  url: https://xkcd.com/
+  requestlimit: 200

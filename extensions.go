@@ -23,3 +23,18 @@ func (d *SaveInRedisExtension) ItemScraped(scraper *Scraper, item SaveableItem) 
 		scraper.engine.Meta.IncrSaved(scraper)
 	}
 }
+
+type DisplayExtension struct {
+}
+
+func (d *DisplayExtension) ScraperStarted(scraper *Scraper) {
+
+}
+
+func (d *DisplayExtension) ScraperStopped(scraper *Scraper) {
+
+}
+
+func (d *DisplayExtension) ItemScraped(scraper *Scraper, item SaveableItem) {
+	Logger().Noticef("%s", item)
+}

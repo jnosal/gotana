@@ -8,10 +8,10 @@ import (
 type genericStruct map[string]interface{}
 
 type DAO interface {
-	Write(name string, data []byte) error
-	GetLatestItem(name string) error
+	SaveItem(name string, data []byte) error
 	GetItems(name string) []string
 	CountItems(name string) int64
+	ProcessItem(items string) genericStruct
 	ProcessItems(items []string) []genericStruct
 }
 
@@ -27,7 +27,7 @@ func SaveItem(item SaveableItem, dao DAO) {
 
 	scraper := item.Scraper().Name
 	if data, err := item.RecordData(); err == nil {
-		dao.Write(scraper, data)
+		dao.SaveItem(scraper, data)
 	}
 }
 
@@ -39,7 +39,7 @@ func (r RedisDAO) KeyPrefixed(key string) string {
 	return "gotana-" + key
 }
 
-func (r RedisDAO) Write(name string, data []byte) error {
+func (r RedisDAO) SaveItem(name string, data []byte) error {
 	stringData := string(data[:])
 	key := r.KeyPrefixed(name)
 	r.client.SAdd(key, stringData)
