@@ -187,6 +187,10 @@ func (proxy ScrapedItem) CheckURLPatterns() (result bool) {
 	return
 }
 
+func (proxy ScrapedItem) ScheduleScraperStop() {
+	proxy.scraper.Stop()
+}
+
 type Scraper struct {
 	crawled      int
 	successful   int

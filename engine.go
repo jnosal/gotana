@@ -174,6 +174,7 @@ func (engine *Engine) GetScraper(name string) *Scraper {
 	for _, scraper := range engine.scrapers {
 		if scraper.Name == name {
 			return scraper
+
 		}
 	}
 	return nil
