@@ -8,6 +8,7 @@ import (
 	"golang.org/x/net/html"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"net"
 	"net/http"
 	URL "net/url"
@@ -122,6 +123,13 @@ type ScraperConfig struct {
 			Pattern string `required:"true"`
 		}
 	}
+}
+
+type ScraperParams struct {
+	Name         string
+	Url          string
+	RequestLimit int
+	Extractor    Extractable
 }
 
 type ScrapedItem struct {
@@ -344,7 +352,7 @@ func (scraper *Scraper) Fetch(url string) (resp *http.Response, err error) {
 	return
 }
 
-func (scraper *Scraper) PushPatterns(urlPatterns ...URLPattern) *Scraper {
+func (scraper *Scraper) AddPatterns(urlPatterns ...URLPattern) *Scraper {
 	scraper.urlPatterns = append(scraper.urlPatterns, urlPatterns...)
 	return scraper
 }
@@ -361,30 +369,34 @@ func (scraper *Scraper) String() (result string) {
 	return
 }
 
-func NewScraper(name string, sourceUrl string, requestLimit int, extractor Extractable) (s *Scraper) {
-	parsed, err := URL.Parse(sourceUrl)
+func NewScraper(params ScraperParams) (s *Scraper) {
+	parsed, err := URL.Parse(params.Url)
 	if err != nil {
-		Logger().Infof("Inappropriate URL: %s", sourceUrl)
+		Logger().Infof("Inappropriate URL: %s", params.Url)
 		return
 	}
 
-	if extractor == nil {
+	if params.Extractor == nil {
 		Logger().Warning("Switching to default extractor")
-		extractor = defaultExtractor()
+		params.Extractor = defaultExtractor()
+	}
+
+	if params.Name == "" {
+		params.Name = defaultScraperName()
 	}
 
 	s = &Scraper{
-		Name:         name,
+		Name:         params.Name,
 		Scheme:       parsed.Scheme,
 		Domain:       parsed.Host,
-		BaseUrl:      sourceUrl,
+		BaseUrl:      params.Url,
 		fetchedUrls:  make(map[string]bool),
 		crawledMutex: &sync.Mutex{},
 		fetchMutex:   &sync.Mutex{},
-		extractor:    extractor,
+		extractor:    params.Extractor,
 		chDone:       make(chan struct{}),
 		chRequestUrl: make(chan string, 5),
-		requestLimit: requestLimit,
+		requestLimit: params.RequestLimit,
 	}
 	return
 }
@@ -422,8 +434,20 @@ func defaultRequestLimit() time.Duration {
 	return time.Duration(1)
 }
 
+func defaultScraperName() (name string) {
+	const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	b := make([]byte, 5)
+	for i := range b {
+		b[i] = letterBytes[rand.Intn(len(letterBytes))]
+	}
+	name = string(b)
+	return
+}
+
 func NewSpiderConfig(file string) (config *ScraperConfig) {
 	config = &ScraperConfig{}
-	ProcessFile(config, file)
+	if file != "" {
+		ProcessFile(config, file)
+	}
 	return
 }

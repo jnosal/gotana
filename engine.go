@@ -108,8 +108,15 @@ func (engine *Engine) startHTTPServer() {
 
 func (engine *Engine) Start() {
 	defer engine.Cleanup()
+	Logger().Info("Starting engine")
 
 	engine.state = STATE_RUNNING
+
+	if len(engine.scrapers) == 0 {
+		Logger().Warning("No scrapers have been registered. Exiting...")
+		engine.Stop()
+		return
+	}
 
 	for _, scraper := range engine.scrapers {
 		go scraper.Start()
@@ -139,6 +146,7 @@ func (engine *Engine) Start() {
 
 func (engine *Engine) Stop() {
 	engine.state = STATE_STOPPING
+	Logger().Info("Stopping engine")
 
 	for _, scraper := range engine.scrapers {
 		scraper.Stop()
@@ -171,7 +179,7 @@ func (engine *Engine) GetScraper(name string) *Scraper {
 	return nil
 }
 
-func (engine *Engine) PushScraper(scrapers ...*Scraper) *Engine {
+func (engine *Engine) AddScrapers(scrapers ...*Scraper) *Engine {
 	for _, scraper := range scrapers {
 		engine.Meta.ScraperStats[scraper.Name] = NewScraperMeta()
 		scraper.engine = engine
@@ -209,13 +217,19 @@ func (engine *Engine) FromConfig(config *ScraperConfig) *Engine {
 		default:
 			break
 		}
-		scraper := NewScraper(configData.Name, configData.Url, configData.RequestLimit, extractor)
+		params := ScraperParams{
+			Extractor:    extractor,
+			Name:         configData.Name,
+			Url:          configData.Url,
+			RequestLimit: configData.RequestLimit,
+		}
+		scraper := NewScraper(params)
 		for _, patternData := range configData.Patterns {
 			pattern := NewURLPattern(patternData.Type, patternData.Pattern)
-			scraper.PushPatterns(pattern)
+			scraper.AddPatterns(pattern)
 		}
 		Logger().Debugf("Defined following url patterns: %s", scraper.urlPatterns)
-		engine.PushScraper(scraper)
+		engine.AddScrapers(scraper)
 	}
 
 	return engine
@@ -231,6 +245,7 @@ func GetDAO(engine *Engine) DAO {
 func NewEngine() (r *Engine) {
 	r = &Engine{
 		state:      STATE_INITIAL,
+		Config:     NewSpiderConfig(""),
 		Meta:       NewEngineMeta(),
 		limitCrawl: 10000,
 		limitFail:  500,
