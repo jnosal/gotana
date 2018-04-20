@@ -35,9 +35,9 @@ func CoinMarketCapHandler(proxy gotana.ScrapedItem, items chan<- gotana.Saveable
 				Price:      s.Find("a.price").AttrOr("data-usd", ""),
 				Volume:     s.Find("a.volume").AttrOr("data-usd", ""),
 				Cap:        s.Find(".market-cap").AttrOr("data-usd", ""),
-				Percent1h:  s.Find(".percent-1h").Text(),
-				Percent24h: s.Find(".percent-24h").Text(),
-				Percent7d:  s.Find(".prcent-7d").Text(),
+				Percent1h:  s.Find("[data-timespan='1h']").Text(),
+				Percent24h: s.Find("[data-timespan='24h']").Text(),
+				Percent7d:  s.Find("[data-timespan='7d']").Text(),
 			}
 			item.Proxy = proxy
 			go func() {
