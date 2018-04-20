@@ -118,16 +118,16 @@ func (engine *Engine) Start() {
 		return
 	}
 
-	for _, scraper := range engine.scrapers {
-		go scraper.Start()
-	}
-
 	sigChan := make(chan os.Signal)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	go engine.startTCPServer()
 	go engine.startHTTPServer()
 	go engine.scrapingLoop()
+
+	for _, scraper := range engine.scrapers {
+		go scraper.Start()
+	}
 
 	select {
 	case <-engine.chDone:

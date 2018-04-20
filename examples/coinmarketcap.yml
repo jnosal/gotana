@@ -1,0 +1,7 @@
+project: coinmarketcap
+redisaddress: localhost:6379
+httpaddress: localhost:5555
+scrapers:
+- name: coinmarketcap
+  url: https://coinmarketcap.com/all/views/all/
+  requestlimit: 2000
